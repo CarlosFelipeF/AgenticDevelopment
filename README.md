@@ -66,8 +66,8 @@ Built on the [OWASP Agentic Security Initiative](https://owasp.org/www-project-a
 ### 1. Copy the framework to your project
 
 ```bash
-cp -r agent-governance-framework-v2/.agent /path/to/your/project/
-cp agent-governance-framework-v2/AGENTS.md /path/to/your/project/
+cp -r .agent /path/to/your/project/
+cp AGENTS.md /path/to/your/project/
 ```
 
 ### 2. Customize project-specific rules

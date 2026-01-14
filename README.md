@@ -114,21 +114,21 @@ Expected answer: The 7 `.agent/` protocol files in order.
 │                        AI CODING AGENT                          │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    GOVERNANCE LAYER                        │  │
+│  │                    GOVERNANCE LAYER                       │  │
 │  │                                                           │  │
-│  │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │  │
-│  │   │  IMMUTABLE  │  │ CONFIGURABLE│  │   PROJECT   │      │  │
-│  │   │   RULES     │  │    RULES    │  │   CONTEXT   │      │  │
-│  │   │             │  │             │  │             │      │  │
-│  │   │ 01-SECURITY │  │03-WORKFLOW  │  │ARCHITECTURE │      │  │
-│  │   │ 02-CONSTR.  │  │04-CONVENT.  │  │  TESTING    │      │  │
-│  │   │             │  │05-SESSIONS  │  │  GLOSSARY   │      │  │
-│  │   │             │  │06-PROTOCOLS │  │             │      │  │
-│  │   │             │  │07-PROJECT   │  │             │      │  │
-│  │   └─────────────┘  └─────────────┘  └─────────────┘      │  │
+│  │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │  │
+│  │   │  IMMUTABLE  │  │ CONFIGURABLE│  │   PROJECT   │       │  │
+│  │   │   RULES     │  │    RULES    │  │   CONTEXT   │       │  │
+│  │   │             │  │             │  │             │       │  │
+│  │   │ 01-SECURITY │  │03-WORKFLOW  │  │ARCHITECTURE │       │  │
+│  │   │ 02-CONSTR.  │  │04-CONVENT.  │  │  TESTING    │       │  │
+│  │   │             │  │05-SESSIONS  │  │  GLOSSARY   │       │  │
+│  │   │             │  │06-PROTOCOLS │  │             │       │  │
+│  │   │             │  │07-PROJECT   │  │             │       │  │
+│  │   └─────────────┘  └─────────────┘  └─────────────┘       │  │
 │  │         ▲                 ▲                ▲              │  │
 │  │         │                 │                │              │  │
-│  │         └────── LOADED AT SESSION START ──┘              │  │
+│  │         └────── LOADED AT SESSION START ──┘               │  │
 │  │                                                           │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                  │

@@ -310,13 +310,11 @@ These rules exist in `01-SECURITY.md` and `02-CONSTRAINTS.md` and **cannot be ch
 | `/status` | Current session status | `/status` |
 | `/recap` | Summarize session work | `/recap` |
 
-### Available in Slash_Commands/
+### Additional Slash Commands
 
-| File | Command | Description |
-|------|---------|-------------|
-| `mvp-slash-command.md` | `/mvp <spec-file>` | Tracer bullet MVP planning |
+For more slash commands (like `/mvp` for tracer bullet MVP planning), see the companion repository:
 
-**Usage:** Copy command contents to your AI assistant or reference the file directly.
+**[ai-slash-commands](https://github.com/CarlosFelipeF/ai-slash-commands)** — A library of reusable slash commands for AI coding assistants.
 
 ---
 

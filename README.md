@@ -87,10 +87,6 @@ Start by loading `AGENTS.md`, which instructs agents to load governance files in
 
 ---
 
-## Contributing
-
-Feel free to submit issues or PRs to improve the framework.
-
 ## License
 
-MIT
+Copyright (c) 2025 Carlos Felipe Franca da Fonseca. All Rights Reserved.

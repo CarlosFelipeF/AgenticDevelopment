@@ -1,4 +1,4 @@
-# 02-CONSTRAINTS.md — Permissions & Boundaries
+# CONSTRAINTS.md — Permissions & Boundaries
 
 ## Permission Levels
 

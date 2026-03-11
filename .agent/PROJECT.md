@@ -1,4 +1,4 @@
-# 07-PROJECT.md — Project Configuration
+# PROJECT.md — Project Configuration
 
 > Template file. Customize this for your specific project.
 > This file can override configurable rules from other `.agent/` files.
@@ -93,12 +93,12 @@ NODE_ENV=development
 ## Override Defaults
 
 <!-- Override rules from other .agent/ files here -->
-<!-- This section can override configurable settings from 03-WORKFLOW.md and 04-CONVENTIONS.md -->
+<!-- This section can override configurable settings from WORKFLOW.md and CONVENTIONS.md -->
 
 ### Workflow Overrides
 
 ```yaml
-# Branch naming (overrides 03-WORKFLOW.md)
+# Branch naming (overrides WORKFLOW.md)
 branch_prefix: "feature/"      # or your preference
 commit_scope_required: false   # if scopes aren't used
 
@@ -110,11 +110,11 @@ require_linear_history: true
 ### Convention Overrides
 
 ```yaml
-# Formatting (overrides 04-CONVENTIONS.md)
+# Formatting (overrides CONVENTIONS.md)
 indent_size: 4                 # if different from default
 max_line_length: 120
 
-# Linting tools (overrides 04-CONVENTIONS.md defaults)
+# Linting tools (overrides CONVENTIONS.md defaults)
 python_formatter: "ruff"       # instead of black
 python_linter: "ruff"          # instead of flake8
 ```

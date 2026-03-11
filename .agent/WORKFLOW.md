@@ -1,4 +1,4 @@
-# 03-WORKFLOW.md — Git & Development Workflow
+# WORKFLOW.md — Git & Development Workflow
 
 ## Branch Strategy
 
@@ -199,4 +199,4 @@ git rebase --continue
 
 ---
 
-*These workflow standards can be customized in `.agent/07-PROJECT.md` for project-specific needs.*
+*These workflow standards can be customized in `.agent/PROJECT.md` for project-specific needs.*

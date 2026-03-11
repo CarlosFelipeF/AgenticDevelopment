@@ -1,4 +1,4 @@
-# 06-PROTOCOLS.md — Slash Commands
+# PROTOCOLS.md — Slash Commands
 
 > Quick commands for common development workflows. 
 > These are conventions, not executable scripts.
@@ -309,4 +309,4 @@ Summarize work done in current session.
 
 ---
 
-*Commands can be extended in `.agent/07-PROJECT.md` for project-specific workflows.*
+*Commands can be extended in `.agent/PROJECT.md` for project-specific workflows.*

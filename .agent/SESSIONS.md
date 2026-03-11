@@ -1,4 +1,4 @@
-# 05-SESSIONS.md — Session Management
+# SESSIONS.md — Session Management
 
 ## Session Start Protocol
 

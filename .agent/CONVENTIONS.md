@@ -1,4 +1,4 @@
-# 04-CONVENTIONS.md — Code Style & Patterns
+# CONVENTIONS.md — Code Style & Patterns
 
 ## General Principles
 
@@ -286,4 +286,4 @@ it('should calculate total with discount', () => {
 
 ---
 
-*Project-specific conventions should be documented in `.agent/07-PROJECT.md`.*
+*Project-specific conventions should be documented in `.agent/PROJECT.md`.*

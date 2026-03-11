@@ -8,13 +8,13 @@
 **On session start, load governance files in order:**
 
 ```
-.agent/01-SECURITY.md      # Security behaviors (OWASP-aligned)
-.agent/02-CONSTRAINTS.md   # Permissions and boundaries
-.agent/03-WORKFLOW.md      # Git, commits, branches
-.agent/04-CONVENTIONS.md   # Code style and patterns
-.agent/05-SESSIONS.md      # Session protocols
-.agent/06-PROTOCOLS.md     # Slash commands
-.agent/07-PROJECT.md       # Project-specific rules
+.agent/SECURITY.md         # Security behaviors (OWASP-aligned)
+.agent/CONSTRAINTS.md      # Permissions and boundaries
+.agent/WORKFLOW.md         # Git, commits, branches
+.agent/CONVENTIONS.md      # Code style and patterns
+.agent/SESSIONS.md         # Session protocols
+.agent/PROTOCOLS.md        # Slash commands
+.agent/PROJECT.md          # Project-specific rules
 ```
 
 **Then load project context:**
@@ -34,7 +34,7 @@ GLOSSARY.md                # Domain terminology
 - Always require human approval for destructive operations
 - Never ignore `.gitignore` patterns
 
-**Configurable (can be overridden by `.agent/07-PROJECT.md`):**
+**Configurable (can be overridden by `.agent/PROJECT.md`):**
 - Branch naming conventions
 - Commit message format
 - Code style preferences
@@ -55,13 +55,13 @@ GLOSSARY.md                # Domain terminology
 
 | Need to... | See |
 |------------|-----|
-| Check if action is allowed | `.agent/02-CONSTRAINTS.md` |
-| Commit code | `.agent/03-WORKFLOW.md` |
+| Check if action is allowed | `.agent/CONSTRAINTS.md` |
+| Commit code | `.agent/WORKFLOW.md` |
 | Run tests | `TESTING.md` |
 | Understand the system | `ARCHITECTURE.md` |
-| Use slash commands | `.agent/06-PROTOCOLS.md` |
-| Handle secrets | `.agent/01-SECURITY.md` |
+| Use slash commands | `.agent/PROTOCOLS.md` |
+| Handle secrets | `.agent/SECURITY.md` |
 
 ---
 
-*Framework version: 2.0.0 | OWASP ASI alignment: ASI01-10 via `.agent/01-SECURITY.md`*
+*Framework version: 2.0.0 | OWASP ASI alignment: ASI01-10 via `.agent/SECURITY.md`*

@@ -2,7 +2,7 @@
 
 > **For platform operators and security teams.**
 > This checklist covers infrastructure and platform-level controls that secure AI agent operations.
-> For agent behavior rules, see `AGENTS.md` and `.agent/01-SECURITY.md`.
+> For agent behavior rules, see `AGENTS.md` and `.agent/SECURITY.md`.
 
 ## Purpose
 

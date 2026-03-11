@@ -72,7 +72,7 @@ cp AGENTS.md /path/to/your/project/
 
 ### 2. Customize project-specific rules
 
-Edit `.agent/07-PROJECT.md` with your project's conventions:
+Edit `.agent/PROJECT.md` with your project's conventions:
 
 ```markdown
 # Project-Specific Rules
@@ -120,11 +120,11 @@ Expected answer: The 7 `.agent/` protocol files in order.
 │  │   │  IMMUTABLE  │  │ CONFIGURABLE│  │   PROJECT   │       │  │
 │  │   │   RULES     │  │    RULES    │  │   CONTEXT   │       │  │
 │  │   │             │  │             │  │             │       │  │
-│  │   │ 01-SECURITY │  │03-WORKFLOW  │  │ARCHITECTURE │       │  │
-│  │   │ 02-CONSTR.  │  │04-CONVENT.  │  │  TESTING    │       │  │
-│  │   │             │  │05-SESSIONS  │  │  GLOSSARY   │       │  │
-│  │   │             │  │06-PROTOCOLS │  │             │       │  │
-│  │   │             │  │07-PROJECT   │  │             │       │  │
+│  │   │  SECURITY   │  │  WORKFLOW   │  │ARCHITECTURE │       │  │
+│  │   │ CONSTRAINTS │  │ CONVENTIONS │  │  TESTING    │       │  │
+│  │   │             │  │  SESSIONS   │  │  GLOSSARY   │       │  │
+│  │   │             │  │  PROTOCOLS  │  │             │       │  │
+│  │   │             │  │  PROJECT    │  │             │       │  │
 │  │   └─────────────┘  └─────────────┘  └─────────────┘       │  │
 │  │         ▲                 ▲                ▲              │  │
 │  │         │                 │                │              │  │
@@ -147,13 +147,13 @@ Expected answer: The 7 `.agent/` protocol files in order.
 ```
 your-project/
 ├── .agent/                          # Agent governance (loaded by AI)
-│   ├── 01-SECURITY.md               # Security behaviors
-│   ├── 02-CONSTRAINTS.md            # Permissions matrix
-│   ├── 03-WORKFLOW.md               # Git operations
-│   ├── 04-CONVENTIONS.md            # Code style
-│   ├── 05-SESSIONS.md               # Session management
-│   ├── 06-PROTOCOLS.md              # Slash commands
-│   └── 07-PROJECT.md                # Your customizations
+│   ├── SECURITY.md                  # Security behaviors
+│   ├── CONSTRAINTS.md               # Permissions matrix
+│   ├── WORKFLOW.md                  # Git operations
+│   ├── CONVENTIONS.md               # Code style
+│   ├── SESSIONS.md                  # Session management
+│   ├── PROTOCOLS.md                 # Slash commands
+│   └── PROJECT.md                   # Your customizations
 ├── AGENTS.md                        # Entry point for agents
 ├── ARCHITECTURE.md                  # System design (for context)
 ├── TESTING.md                       # Test strategy (for context)
@@ -165,9 +165,9 @@ your-project/
 
 ## The .agent/ Protocol Files
 
-Agents load these files **in numerical order** at session start. Earlier files have higher precedence.
+Agents load these files **in order** at session start. Earlier files have higher precedence.
 
-### 01-SECURITY.md — Security Behaviors
+### SECURITY.md — Security Behaviors
 
 **Purpose:** Define how agents handle security-sensitive operations.
 
@@ -187,7 +187,7 @@ If secrets are detected:
 4. Suggest using environment variables
 ```
 
-### 02-CONSTRAINTS.md — Permissions Matrix
+### CONSTRAINTS.md — Permissions Matrix
 
 **Purpose:** Define what agents are allowed to do.
 
@@ -208,7 +208,7 @@ If secrets are detected:
 | Run rm -rf          | No      | Always            |
 ```
 
-### 03-WORKFLOW.md — Git Operations
+### WORKFLOW.md — Git Operations
 
 **Purpose:** Standardize version control behavior.
 
@@ -218,7 +218,7 @@ If secrets are detected:
 - PR description templates
 - Merge strategies
 
-### 04-CONVENTIONS.md — Code Style
+### CONVENTIONS.md — Code Style
 
 **Purpose:** Ensure consistent code output.
 
@@ -228,7 +228,7 @@ If secrets are detected:
 - File organization patterns
 - Documentation requirements
 
-### 05-SESSIONS.md — Session Management
+### SESSIONS.md — Session Management
 
 **Purpose:** Define session lifecycle behaviors.
 
@@ -238,7 +238,7 @@ If secrets are detected:
 - Handoff protocols
 - Session end summary format
 
-### 06-PROTOCOLS.md — Slash Commands
+### PROTOCOLS.md — Slash Commands
 
 **Purpose:** Define available workflow commands.
 
@@ -249,7 +249,7 @@ If secrets are detected:
 - `/test` — Run relevant tests
 - Full command reference with examples
 
-### 07-PROJECT.md — Project Customization
+### PROJECT.md — Project Customization
 
 **Purpose:** Your project-specific overrides.
 
@@ -267,7 +267,7 @@ Not all rules are equal. The framework distinguishes between **immutable** and *
 
 ### Immutable Rules (Cannot be overridden)
 
-These rules exist in `01-SECURITY.md` and `02-CONSTRAINTS.md` and **cannot be changed** by any file or instruction:
+These rules exist in `SECURITY.md` and `CONSTRAINTS.md` and **cannot be changed** by any file or instruction:
 
 | Rule | Reason |
 |------|--------|
@@ -279,7 +279,7 @@ These rules exist in `01-SECURITY.md` and `02-CONSTRAINTS.md` and **cannot be ch
 
 **Why immutable?** These protect against both accidents and prompt injection attacks.
 
-### Configurable Rules (Can be overridden in 07-PROJECT.md)
+### Configurable Rules (Can be overridden in PROJECT.md)
 
 | Rule | Default | Can Override? |
 |------|---------|---------------|
@@ -293,7 +293,7 @@ These rules exist in `01-SECURITY.md` and `02-CONSTRAINTS.md` and **cannot be ch
 
 ## Slash Commands
 
-### Available in 06-PROTOCOLS.md
+### Available in PROTOCOLS.md
 
 | Command | Description | Example |
 |---------|-------------|---------|
@@ -339,12 +339,12 @@ Create or update `.cursorrules`:
 # Agent Governance
 
 @AGENTS.md contains behavioral rules for this project.
-@.agent/01-SECURITY.md through @.agent/07-PROJECT.md define protocols.
+@.agent/SECURITY.md through @.agent/PROJECT.md define protocols.
 
 Before any operation:
-1. Check if action is allowed in 02-CONSTRAINTS.md
-2. Follow conventions in 04-CONVENTIONS.md
-3. Use commit format from 03-WORKFLOW.md
+1. Check if action is allowed in CONSTRAINTS.md
+2. Follow conventions in CONVENTIONS.md
+3. Use commit format from WORKFLOW.md
 ```
 
 ### GitHub Copilot
@@ -369,7 +369,7 @@ The framework is tool-agnostic. For any AI assistant:
 
 ### What to Customize
 
-Edit **only** `.agent/07-PROJECT.md`. Examples:
+Edit **only** `.agent/PROJECT.md`. Examples:
 
 **Custom branch naming:**
 ```markdown
@@ -400,8 +400,8 @@ Trigger deployment pipeline:
 ### What NOT to Customize
 
 Do not modify:
-- `01-SECURITY.md` — Security rules are intentionally immutable
-- `02-CONSTRAINTS.md` — Permission boundaries protect your system
+- `SECURITY.md` — Security rules are intentionally immutable
+- `CONSTRAINTS.md` — Permission boundaries protect your system
 
 If you need different security rules, you may be looking for a different risk profile than this framework provides.
 
@@ -416,7 +416,7 @@ This framework maps to all 10 OWASP ASI threat categories:
 | Code | Threat | How Framework Addresses |
 |------|--------|-------------------------|
 | ASI01 | Prompt Injection | Immutable rules can't be overridden by prompts |
-| ASI02 | Tool Misuse | Explicit permission matrix in 02-CONSTRAINTS |
+| ASI02 | Tool Misuse | Explicit permission matrix in CONSTRAINTS |
 | ASI03 | Privilege Misuse | Least privilege defaults, approval workflows |
 | ASI04 | Supply Chain | Dependency verification requirements |
 | ASI05 | Sandbox Escape | Directory boundaries, command restrictions |
@@ -447,10 +447,10 @@ Agents are explicitly trained to reject:
 ### Why separate files instead of one large AGENTS.md?
 
 **Modularity and precedence.** Separate files allow:
-- Clear precedence (numbered order)
+- Clear precedence (defined order)
 - Easier updates (change one file, not hunt through a monolith)
 - Better context loading (agents can reference specific files)
-- Cleaner customization (only edit 07-PROJECT.md)
+- Cleaner customization (only edit PROJECT.md)
 
 ### Can I use this with multiple AI tools?
 
@@ -468,17 +468,19 @@ For true security boundaries, use:
 
 ### How do I update the framework?
 
-Pull updates from this repository, but **preserve your `07-PROJECT.md`**:
+Pull updates from this repository, but **preserve your `PROJECT.md`**:
 
 ```bash
 # Backup your customizations
-cp .agent/07-PROJECT.md .agent/07-PROJECT.md.bak
+cp .agent/PROJECT.md .agent/PROJECT.md.bak
 
-# Update framework files
-cp -r new-version/.agent/0[1-6]*.md .agent/
+# Update framework files (copy all except PROJECT.md)
+for f in SECURITY CONSTRAINTS WORKFLOW CONVENTIONS SESSIONS PROTOCOLS; do
+  cp new-version/.agent/$f.md .agent/
+done
 
 # Restore customizations
-mv .agent/07-PROJECT.md.bak .agent/07-PROJECT.md
+mv .agent/PROJECT.md.bak .agent/PROJECT.md
 ```
 
 ### Is this compatible with Claude Code's built-in AGENTS.md support?

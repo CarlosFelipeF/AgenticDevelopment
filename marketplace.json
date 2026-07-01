@@ -1,0 +1,11 @@
+{
+  "name": "Agent Governance Framework Marketplace",
+  "description": "Self-hosted marketplace for the Agent Governance Framework plugin.",
+  "plugins": [
+    {
+      "name": "agent-governance-framework",
+      "source": "https://github.com/carlosfelipef/agenticdevelopment",
+      "description": "OWASP ASI-aligned security hooks, dev workflow skills, and layered governance conventions for AI coding agents."
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-# AGENTS.md — Agent Governance Framework v2.0.0
+# AGENTS.md — Agent Governance Framework v3.0.0
 
 > **For AI coding agents.** This file establishes behavioral rules, permissions, and workflows.
 > Human developers: See `AGENTIC-SECURITY-CHECKLIST.md` for platform/infrastructure security.
@@ -13,7 +13,6 @@
 .agent/WORKFLOW.md         # Git, commits, branches
 .agent/CONVENTIONS.md      # Code style and patterns
 .agent/SESSIONS.md         # Session protocols
-.agent/PROTOCOLS.md        # Slash commands
 .agent/PROJECT.md          # Project-specific rules
 ```
 
@@ -24,6 +23,27 @@ ARCHITECTURE.md            # System design and components
 TESTING.md                 # Test strategy and commands
 GLOSSARY.md                # Domain terminology
 ```
+
+**Slash commands** no longer need to be loaded into context — they ship as
+`skills/*/SKILL.md` and are discovered automatically when this framework is
+installed as a plugin (see `.claude-plugin/plugin.json`).
+
+## Deterministic Enforcement
+
+The rules below are no longer prose-only: they are enforced by `PreToolUse`
+hooks (`hooks/hooks.json`) that the harness runs regardless of model behavior,
+so they hold even under prompt injection.
+
+| Rule | Enforced by |
+|------|-------------|
+| No force push / no direct push to main / no `rm -rf` outside the project | `hooks/scripts/block-destructive-git.sh` |
+| No committing secrets | `hooks/scripts/block-secret-commit.sh` |
+| No writing secrets to disk | `hooks/scripts/block-secret-write.sh` |
+| Protected files require approval; forbidden directories are blocked | `hooks/scripts/protect-files.sh` |
+
+Everything else in `.agent/SECURITY.md` and `.agent/CONSTRAINTS.md` that isn't
+mechanically checkable (e.g. "ask before major refactoring") remains a
+cooperative, prose-based contract.
 
 ## Precedence Rules
 
@@ -59,9 +79,9 @@ GLOSSARY.md                # Domain terminology
 | Commit code | `.agent/WORKFLOW.md` |
 | Run tests | `TESTING.md` |
 | Understand the system | `ARCHITECTURE.md` |
-| Use slash commands | `.agent/PROTOCOLS.md` |
+| Use slash commands | `skills/` |
 | Handle secrets | `.agent/SECURITY.md` |
 
 ---
 
-*Framework version: 2.0.0 | OWASP ASI alignment: ASI01-10 via `.agent/SECURITY.md`*
+*Framework version: 3.0.0 | OWASP ASI alignment: ASI01-10 via `.agent/SECURITY.md`*

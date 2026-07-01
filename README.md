@@ -185,13 +185,13 @@ path above, just the workflow layer.
 ```
 agenticdevelopment/
 ├── .claude-plugin/
-│   └── plugin.json                  # Plugin manifest (skills + hooks)
+│   ├── plugin.json                  # Plugin manifest (skills/ and hooks/hooks.json are auto-discovered by convention — not declared explicitly)
+│   └── marketplace.json             # Self-hosted plugin marketplace entry
 ├── hooks/
 │   ├── hooks.json                   # PreToolUse registrations
 │   └── scripts/                     # Deterministic enforcement scripts
 ├── skills/                          # One SKILL.md per slash command
 │   ├── plan/ design/ review/ security-review/ ...
-├── marketplace.json                 # Self-hosted plugin marketplace entry
 ├── .agent/                          # Agent governance (loaded by AI)
 │   ├── SECURITY.md                  # Security behaviors
 │   ├── CONSTRAINTS.md               # Permissions matrix

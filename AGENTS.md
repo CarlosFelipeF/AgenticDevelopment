@@ -41,6 +41,13 @@ so they hold even under prompt injection.
 | No writing secrets to disk | `hooks/scripts/block-secret-write.sh` |
 | Protected files require approval; forbidden directories are blocked | `hooks/scripts/protect-files.sh` |
 
+**Limitation:** the Bash hook matches patterns on the command string
+(including each segment of compound commands), which is best-effort — an
+adversarially phrased command can still evade it. The Write/Edit and commit
+hooks inspect structured input (file paths, content, the staged diff) and
+don't share that weakness. Treat hooks as defense-in-depth alongside
+server-side controls like branch protection, not as a sandbox.
+
 Everything else in `.agent/SECURITY.md` and `.agent/CONSTRAINTS.md` that isn't
 mechanically checkable (e.g. "ask before major refactoring") remains a
 cooperative, prose-based contract.

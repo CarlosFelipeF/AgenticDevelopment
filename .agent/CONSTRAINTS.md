@@ -58,7 +58,10 @@ with a hook are enforced deterministically by the harness, not just by prose:
 ## Directory Boundaries
 
 Forbidden directories are enforced by `hooks/scripts/protect-files.sh` (hard
-deny), not just documented here.
+deny), not just documented here: credential directories (`~/.ssh/`, `~/.aws/`)
+are denied for reads and writes alike; the others are denied for
+writes/edits, with reads left to judgment (reading `/etc/os-release` is
+routine, reading a private key never is).
 
 **Allowed directories:**
 ```

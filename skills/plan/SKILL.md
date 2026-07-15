@@ -1,6 +1,5 @@
 ---
 description: Use before starting a non-trivial coding task to produce a structured implementation plan (objective, approach, steps, files, dependencies, risks, questions) before writing any code.
-invoke-by: both
 ---
 
 # /plan — Implementation Plan

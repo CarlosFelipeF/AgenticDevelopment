@@ -1,6 +1,5 @@
 ---
 description: Use for a focused security review of changes, checking for hardcoded secrets, injection vulnerabilities, path traversal, insecure dependencies, and missing input validation.
-invoke-by: both
 ---
 
 # /security-review — Focused Security Review

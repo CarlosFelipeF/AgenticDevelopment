@@ -1,6 +1,5 @@
 ---
 description: Use to report the current session status - branch, modified files, test status, and task progress.
-invoke-by: both
 ---
 
 # /status — Current Session Status

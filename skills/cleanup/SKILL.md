@@ -1,6 +1,5 @@
 ---
 description: Use to identify and fix code smells (dead code, duplication, overly complex functions) in a file or module.
-invoke-by: both
 ---
 
 # /cleanup — Identify and Fix Code Smells

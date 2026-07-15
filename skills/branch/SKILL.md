@@ -1,6 +1,5 @@
 ---
 description: Use to create a properly named feature branch following the project's branch naming convention.
-invoke-by: both
 ---
 
 # /branch — Create Feature Branch

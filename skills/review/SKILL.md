@@ -1,6 +1,5 @@
 ---
 description: Use to perform a structured code review of staged or recently changed files, checking correctness, tests, security, performance, readability, and conventions.
-invoke-by: both
 ---
 
 # /review — Code Review

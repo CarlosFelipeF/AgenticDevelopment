@@ -1,6 +1,5 @@
 ---
 description: Use to check test coverage for modified code and identify uncovered lines or branches.
-invoke-by: both
 ---
 
 # /coverage — Check Test Coverage

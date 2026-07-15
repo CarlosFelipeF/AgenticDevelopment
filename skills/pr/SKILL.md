@@ -1,6 +1,5 @@
 ---
 description: Use to prepare a pull request description summarizing changes, testing performed, and a review checklist.
-invoke-by: both
 ---
 
 # /pr — Prepare Pull Request

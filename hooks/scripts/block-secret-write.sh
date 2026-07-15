@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# PreToolUse hook (matcher: Write|Edit) — enforces .agent/SECURITY.md "Never commit"
-# list before a secret ever lands on disk, not just at commit time.
+# PreToolUse hook (matcher: Write|Edit|NotebookEdit) — enforces .agent/SECURITY.md
+# "Never commit" list before a secret ever lands on disk, not just at commit time.
 set -euo pipefail
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,7 +8,7 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HOOK_DIR/secret-patterns.sh"
 
 INPUT="$(cat)"
-CONTENT="$(printf '%s' "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')"
+CONTENT="$(printf '%s' "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // .tool_input.new_source // empty')"
 
 [ -z "$CONTENT" ] && exit 0
 

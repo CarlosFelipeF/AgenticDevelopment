@@ -1,6 +1,5 @@
 ---
 description: Use for complex features that need a technical design document covering architecture, API changes, data model, security, and rollout before implementation begins.
-invoke-by: both
 ---
 
 # /design — Technical Design Document

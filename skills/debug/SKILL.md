@@ -1,6 +1,5 @@
 ---
 description: Use to analyze an error message or unexpected behavior, trace it to its root cause, and propose a fix.
-invoke-by: both
 ---
 
 # /debug — Analyze an Error

@@ -1,6 +1,5 @@
 ---
 description: Use to create a well-formatted commit from staged changes, following the project's commit message conventions.
-invoke-by: both
 ---
 
 # /commit — Create Commit

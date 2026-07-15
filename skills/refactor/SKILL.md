@@ -1,6 +1,5 @@
 ---
 description: Use to plan a refactoring operation on a target module or component toward a stated goal, before making changes.
-invoke-by: both
 ---
 
 # /refactor — Plan a Refactor

@@ -6,24 +6,29 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-destructive-git.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-destructive-git.sh"
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-secret-commit.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-secret-commit.sh"
           }
         ]
       },
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-secret-write.sh"
-          },
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-secret-write.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Write|Edit|NotebookEdit",
+        "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-files.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-files.sh"
           }
         ]
       }

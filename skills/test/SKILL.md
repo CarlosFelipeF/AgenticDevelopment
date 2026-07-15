@@ -1,6 +1,5 @@
 ---
 description: Use to run the tests relevant to current changes, or a specified test suite/scope.
-invoke-by: both
 ---
 
 # /test — Run Tests

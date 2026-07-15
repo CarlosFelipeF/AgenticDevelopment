@@ -1,6 +1,5 @@
 ---
 description: Use to prepare a changelog entry for the current unreleased changes.
-invoke-by: both
 ---
 
 # /changelog — Prepare Changelog Entry

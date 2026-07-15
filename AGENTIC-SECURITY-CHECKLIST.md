@@ -46,6 +46,11 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Alert: Blocked tool calls trigger review
 ```
 
+**Repo-level evidence:** `hooks/scripts/block-destructive-git.sh`,
+`block-secret-commit.sh`, and `block-secret-write.sh` deny specific
+tool-call patterns (destructive git, secret exposure) at the harness level —
+registered in `hooks/hooks.json`.
+
 ### ASI03: Privilege & Credential Management
 
 **Platform Controls:**
@@ -90,6 +95,11 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Network: Egress allowlist defined and enforced
 □ Monitor: Resource usage tracked and alerted
 ```
+
+**Repo-level evidence:** `hooks/scripts/protect-files.sh` denies file access
+outside the repository root and protected directories (`/etc/`, `~/.ssh/`,
+`~/.aws/`) at the harness level — a first line of defense in addition to
+container/VM isolation.
 
 ### ASI06: Memory & Context Integrity
 
@@ -166,6 +176,11 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Alert: Policy violations trigger immediate review
 ```
 
+**Repo-level evidence:** the four hooks in `hooks/hooks.json` deny hard-block
+actions deterministically, regardless of model instructions — see
+`AGENTS.md`'s "Deterministic Enforcement" table for the full rule-to-hook
+mapping.
+
 ---
 
 ## Deployment Checklist
@@ -201,6 +216,7 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 | Tool Invocations | Audit table in database |
 | Configuration | Version control + config management |
 | Incidents | Incident management system |
+| Repo-level hook denials | `hooks/scripts/*.sh` (source of truth for patterns/rules) + the session transcript's `hookSpecificOutput` entries for each denied/asked tool call |
 
 ---
 
@@ -216,4 +232,4 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 ---
 
 *This checklist aligns with OWASP Agentic Security Initiative (ASI01-10).*
-*Last updated: 2026-01*
+*Last updated: 2026-07*

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OWASP](https://img.shields.io/badge/OWASP-ASI%20Aligned-orange.svg)](https://owasp.org/www-project-agentic-security/)
-[![Framework](https://img.shields.io/badge/Framework-v2.0.0-green.svg)](#versioning)
+[![Framework](https://img.shields.io/badge/Framework-v3.0.0-green.svg)](#versioning)
 
 **A governance framework for AI coding agents** — ensuring secure, consistent, and predictable behavior in software development workflows.
 
@@ -51,26 +51,61 @@ Built on the [OWASP Agentic Security Initiative](https://owasp.org/www-project-a
 
 | Feature | Description |
 |---------|-------------|
-| **Layered Protocols** | 7 protocol files loaded in order, from security to project-specific |
+| **Layered Protocols** | Protocol files loaded in order, from security to project-specific |
+| **Deterministic Enforcement** | Hard-block rules run as Claude Code `PreToolUse` hooks — enforced by the harness, not just read as prose |
 | **Immutable Security Rules** | Core constraints that cannot be overridden by any instruction |
 | **OWASP ASI Alignment** | Mapped to all 10 agentic security threat categories |
 | **Social Engineering Protection** | Agents trained to reject manipulation attempts |
 | **Configurable Conventions** | Project-specific rules without compromising security |
-| **Slash Commands** | Standardized commands for common workflows |
+| **Skills (Slash Commands)** | Standardized `skills/` for common workflows, installable as a plugin |
 | **Human + Agent Documentation** | Separate docs for platform security vs agent behavior |
 
 ---
 
 ## Quick Start
 
-### 1. Copy the framework to your project
+### Claude Code (recommended): install as a plugin
 
-```bash
-cp -r .agent /path/to/your/project/
-cp AGENTS.md /path/to/your/project/
+```
+/plugin marketplace add carlosfelipef/agenticdevelopment
+/plugin install agent-governance-framework
 ```
 
-### 2. Customize project-specific rules
+This installs the hooks (deterministic enforcement) and skills (slash
+commands). Plugins can't inject project context, so the prose governance
+layer — `AGENTS.md` and `.agent/*.md` — is not included automatically: copy
+those two into your project as shown below (skip `hooks/` and `skills/`,
+the plugin already provides them).
+
+### The prose layer, other tools, or a non-plugin Claude Code setup: copy the framework
+
+```bash
+cp -r .agent AGENTS.md /path/to/your/project/
+```
+
+If you want the hook enforcement without installing the plugin, also copy
+`hooks/` and register it in your project's `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/hooks/scripts/block-destructive-git.sh" },
+        { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/hooks/scripts/block-secret-commit.sh" }
+      ]},
+      { "matcher": "Write|Edit", "hooks": [
+        { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/hooks/scripts/block-secret-write.sh" },
+        { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/hooks/scripts/protect-files.sh" }
+      ]}
+    ]
+  }
+}
+```
+
+Copy `skills/` into `.claude/skills/` if you also want the slash commands.
+
+### Customize project-specific rules
 
 Edit `.agent/PROJECT.md` with your project's conventions:
 
@@ -87,23 +122,20 @@ feature/<ticket>-<description>
 npm test
 ```
 
-### 3. Reference in your AI assistant
-
-**Claude Code / Claude:** Add to your project's custom instructions:
-```
-Before starting work, read and follow AGENTS.md
-```
+### Reference in your AI assistant
 
 **Cursor:** Add to `.cursorrules`:
 ```
 @AGENTS.md - Follow these governance rules for all operations
 ```
 
-### 4. Verify it's working
+### Verify it's working
 
 Ask your agent: "What files should you load at session start?"
 
-Expected answer: The 7 `.agent/` protocol files in order.
+Expected answer: `AGENTS.md` and the `.agent/` protocol files in order. Then
+try triggering a hard block (e.g. ask it to `git push --force`) and confirm
+it's denied by the hook, not just refused by the model.
 
 ---
 
@@ -123,7 +155,6 @@ Expected answer: The 7 `.agent/` protocol files in order.
 │  │   │  SECURITY   │  │  WORKFLOW   │  │ARCHITECTURE │       │  │
 │  │   │ CONSTRAINTS │  │ CONVENTIONS │  │  TESTING    │       │  │
 │  │   │             │  │  SESSIONS   │  │  GLOSSARY   │       │  │
-│  │   │             │  │  PROTOCOLS  │  │             │       │  │
 │  │   │             │  │  PROJECT    │  │             │       │  │
 │  │   └─────────────┘  └─────────────┘  └─────────────┘       │  │
 │  │         ▲                 ▲                ▲              │  │
@@ -138,21 +169,38 @@ Expected answer: The 7 `.agent/` protocol files in order.
 │  │                                                           │  │
 │  │    Read Files    Write Code    Run Commands    Commit     │  │
 │  │                                                           │  │
+│  └──────────────────────────┬────────────────────────────────┘  │
+│                              ▼                                  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │        HOOKS (harness-enforced, survives prompt injection)│  │
+│  │   block-destructive-git · block-secret-commit/write       │  │
+│  │   protect-files              → deny / ask / allow          │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+Skills (`skills/*/SKILL.md`) are invoked alongside agent actions as slash
+commands or model-triggered workflows — they aren't part of the enforcement
+path above, just the workflow layer.
+
 ### File Structure
 
 ```
-your-project/
+agenticdevelopment/
+├── .claude-plugin/
+│   ├── plugin.json                  # Plugin manifest (skills/ and hooks/hooks.json are auto-discovered by convention — not declared explicitly)
+│   └── marketplace.json             # Self-hosted plugin marketplace entry
+├── hooks/
+│   ├── hooks.json                   # PreToolUse registrations
+│   └── scripts/                     # Deterministic enforcement scripts
+├── skills/                          # One SKILL.md per slash command
+│   ├── plan/ design/ review/ security-review/ ...
 ├── .agent/                          # Agent governance (loaded by AI)
 │   ├── SECURITY.md                  # Security behaviors
 │   ├── CONSTRAINTS.md               # Permissions matrix
 │   ├── WORKFLOW.md                  # Git operations
 │   ├── CONVENTIONS.md               # Code style
 │   ├── SESSIONS.md                  # Session management
-│   ├── PROTOCOLS.md                 # Slash commands
 │   └── PROJECT.md                   # Your customizations
 ├── AGENTS.md                        # Entry point for agents
 ├── ARCHITECTURE.md                  # System design (for context)
@@ -238,17 +286,6 @@ If secrets are detected:
 - Handoff protocols
 - Session end summary format
 
-### PROTOCOLS.md — Slash Commands
-
-**Purpose:** Define available workflow commands.
-
-**Key contents:**
-- `/plan` — Create implementation plans
-- `/review` — Perform code reviews
-- `/commit` — Create well-formatted commits
-- `/test` — Run relevant tests
-- Full command reference with examples
-
 ### PROJECT.md — Project Customization
 
 **Purpose:** Your project-specific overrides.
@@ -293,7 +330,11 @@ These rules exist in `SECURITY.md` and `CONSTRAINTS.md` and **cannot be changed*
 
 ## Slash Commands
 
-### Available in PROTOCOLS.md
+### Available as skills (`skills/*/SKILL.md`)
+
+Each command below is a Claude Code skill: usable as an explicit slash command
+and, since it carries a `description`, invokable by the model on its own when
+relevant. They install automatically with the plugin.
 
 | Command | Description | Example |
 |---------|-------------|---------|
@@ -322,7 +363,11 @@ For more slash commands (like `/mvp` for tracer bullet MVP planning), see the co
 
 ### Claude Code
 
-Add to your project instructions or `.claude` settings:
+Install as a plugin (see [Quick Start](#quick-start)) to get hooks and skills
+automatically. `AGENTS.md` is picked up as project context the same way
+Claude Code already looks for it in project roots — no extra instruction
+needed. If you're using the manual-copy path instead, add to your project
+instructions:
 
 ```
 At the start of each session, load governance files:
@@ -415,16 +460,16 @@ This framework maps to all 10 OWASP ASI threat categories:
 
 | Code | Threat | How Framework Addresses |
 |------|--------|-------------------------|
-| ASI01 | Prompt Injection | Immutable rules can't be overridden by prompts |
-| ASI02 | Tool Misuse | Explicit permission matrix in CONSTRAINTS |
+| ASI01 | Prompt Injection | Hard blocks enforced by hooks — survive prompt injection, not just "can't be overridden by prompts" |
+| ASI02 | Tool Misuse | Explicit permission matrix in CONSTRAINTS, secret/destructive commands denied by hooks |
 | ASI03 | Privilege Misuse | Least privilege defaults, approval workflows |
 | ASI04 | Supply Chain | Dependency verification requirements |
-| ASI05 | Sandbox Escape | Directory boundaries, command restrictions |
+| ASI05 | Sandbox Escape | Directory boundaries enforced by `hooks/scripts/protect-files.sh` |
 | ASI06 | Memory Poisoning | Context validation, state verification |
 | ASI07 | Agent Communication | N/A (single-agent framework) |
 | ASI08 | Cascading Failures | Fail-secure defaults, human escalation |
 | ASI09 | Trust Exploitation | Social engineering rejection protocols |
-| ASI10 | Guardrail Bypass | Immutable rules, no override mechanism |
+| ASI10 | Guardrail Bypass | Hard blocks enforced by `hooks/hooks.json`, not just an instruction with no override mechanism |
 
 ### Social Engineering Protection
 
@@ -458,9 +503,16 @@ Agents are explicitly trained to reject:
 
 ### What if an agent ignores the rules?
 
-This framework works with **cooperative agents** — AI systems designed to follow instructions. It's not a sandbox or security boundary; it's a governance contract.
+For the hard blocks in `CONSTRAINTS.md` (secrets, force-push, push-to-main,
+`rm -rf` outside the project, protected files/directories), it can't: those
+are enforced by `hooks/hooks.json` at the Claude Code harness level, so they
+hold even if the model itself is compromised by prompt injection.
 
-For true security boundaries, use:
+Everything else — judgment calls like "ask before major refactoring", code
+style, commit format — is still a **cooperative contract**: it works with AI
+systems designed to follow instructions, not as a sandbox.
+
+For defense in depth beyond what hooks cover, also use:
 - Sandboxed execution environments
 - CI/CD pipeline restrictions
 - Git branch protection rules
@@ -468,16 +520,21 @@ For true security boundaries, use:
 
 ### How do I update the framework?
 
-Pull updates from this repository, but **preserve your `PROJECT.md`**:
+If you installed via the plugin marketplace, `/plugin update` handles this —
+`.agent/PROJECT.md` lives outside the plugin bundle so it's untouched.
+
+If you're on the manual-copy path, pull updates but **preserve your
+`PROJECT.md`**:
 
 ```bash
 # Backup your customizations
 cp .agent/PROJECT.md .agent/PROJECT.md.bak
 
-# Update framework files (copy all except PROJECT.md)
-for f in SECURITY CONSTRAINTS WORKFLOW CONVENTIONS SESSIONS PROTOCOLS; do
+# Update framework files (copy all except PROJECT.md), plus hooks/ and skills/
+for f in SECURITY CONSTRAINTS WORKFLOW CONVENTIONS SESSIONS; do
   cp new-version/.agent/$f.md .agent/
 done
+cp -r new-version/hooks new-version/skills .
 
 # Restore customizations
 mv .agent/PROJECT.md.bak .agent/PROJECT.md
@@ -491,22 +548,22 @@ mv .agent/PROJECT.md.bak .agent/PROJECT.md
 
 ## Roadmap
 
-### v2.0.0 (Current)
+### v2.0.0
 - OWASP ASI alignment
 - 7-file protocol structure
 - Immutable/configurable rule separation
 - Social engineering protection
 
-### v2.1.0 (Planned)
-- Multi-agent coordination protocols
-- Enhanced audit logging formats
-- Integration templates for more AI tools
-- Automated compliance checking
+### v3.0.0 (Current)
+- Hard blocks enforced deterministically via Claude Code `PreToolUse` hooks (`hooks/`), not just prose
+- Slash-command layer migrated from `.agent/PROTOCOLS.md` prose to `skills/*/SKILL.md`
+- Packaged as an installable Claude Code plugin (`.claude-plugin/plugin.json`, `marketplace.json`)
+- Machine-readable rule format for the mechanically-checkable rules (`hooks/hooks.json`, `hooks/scripts/secret-patterns.sh`)
 
-### v3.0.0 (Future)
-- Machine-readable rule format (YAML/JSON)
-- Automated rule enforcement tooling
-- Metrics and observability hooks
+### v3.1.0 (Planned)
+- Multi-agent coordination protocols
+- Audit-log aggregation and observability dashboard for hook denials
+- Integration templates for more AI tools
 - Team-based permission inheritance
 
 ---

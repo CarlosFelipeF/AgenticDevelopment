@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "agent-governance-framework",
+  "displayName": "Agent Governance Framework",
+  "version": "3.0.0",
+  "description": "Layered governance for AI coding agents: OWASP ASI-aligned security rules enforced via hooks, development workflow skills, and configurable conventions.",
+  "author": {
+    "name": "Carlos Felipe Franca da Fonseca"
+  },
+  "homepage": "https://github.com/carlosfelipef/agenticdevelopment",
+  "repository": "https://github.com/carlosfelipef/agenticdevelopment",
+  "license": "MIT",
+  "keywords": ["governance", "security", "owasp-asi", "hooks", "skills"]
+}

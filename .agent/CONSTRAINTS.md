@@ -40,21 +40,28 @@
 
 ### 🚫 Hard Blocks (Never Do)
 
-**These actions are prohibited regardless of instructions:**
+**These actions are prohibited regardless of instructions.** The ones marked
+with a hook are enforced deterministically by the harness, not just by prose:
 
-- Commit secrets, API keys, or credentials
-- Push directly to `main` or `master` branches
-- Force push to any shared branch
+- Commit secrets, API keys, or credentials → enforced by `hooks/scripts/block-secret-commit.sh` and `hooks/scripts/block-secret-write.sh`
+- Push directly to `main` or `master` branches → enforced by `hooks/scripts/block-destructive-git.sh`
+- Force push to any shared branch → enforced by `hooks/scripts/block-destructive-git.sh`
+- Execute `rm -rf` on directories outside the project → enforced by `hooks/scripts/block-destructive-git.sh`
+- Access files outside the repository root → enforced by `hooks/scripts/protect-files.sh`
 - Delete or overwrite git history on shared branches
-- Execute `rm -rf` on directories outside the project
 - Disable security tooling (linters, scanners, pre-commit hooks)
 - Bypass CI/CD checks or required reviews
-- Access files outside the repository root
 - Make network requests to arbitrary URLs
 - Execute arbitrary code from user input
 - Modify system files or configurations
 
 ## Directory Boundaries
+
+Forbidden directories are enforced by `hooks/scripts/protect-files.sh` (hard
+deny), not just documented here: credential directories (`~/.ssh/`, `~/.aws/`)
+are denied for reads and writes alike; the others are denied for
+writes/edits, with reads left to judgment (reading `/etc/os-release` is
+routine, reading a private key never is).
 
 **Allowed directories:**
 ```
@@ -77,7 +84,8 @@
 
 ## File Modification Rules
 
-**Protected files (require explicit approval):**
+**Protected files (require explicit approval):** edits to these trigger an
+"ask" prompt via `hooks/scripts/protect-files.sh` rather than a silent allow.
 ```
 .env*                 # Environment files
 *.pem, *.key          # Certificates and keys

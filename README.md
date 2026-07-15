@@ -71,10 +71,13 @@ Built on the [OWASP Agentic Security Initiative](https://owasp.org/www-project-a
 /plugin install agent-governance-framework
 ```
 
-This installs the hooks (deterministic enforcement), skills (slash commands),
-and loads `AGENTS.md` / `.agent/*.md` as project context — no manual copying.
+This installs the hooks (deterministic enforcement) and skills (slash
+commands). Plugins can't inject project context, so the prose governance
+layer — `AGENTS.md` and `.agent/*.md` — is not included automatically: copy
+those two into your project as shown below (skip `hooks/` and `skills/`,
+the plugin already provides them).
 
-### Other tools, or a non-plugin Claude Code setup: copy the framework
+### The prose layer, other tools, or a non-plugin Claude Code setup: copy the framework
 
 ```bash
 cp -r .agent AGENTS.md /path/to/your/project/

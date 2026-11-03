@@ -41,6 +41,9 @@ needs all three, stop and ask the human to approve it or split it into separate 
 - Connection strings with credentials
 - `.env` files with real values
 
+**Never put secrets in prompts, chat, issues or PR text.** Anything sent to a model or posted
+online may be logged, cached or indexed.
+
 **Never read** secret files (`.env*` except `.env.example`, `*.pem`, `*.key`, `~/.ssh/`, `~/.aws/`,
 cloud credential files) unless the human asks for that specific file in the current session.
 
@@ -51,9 +54,14 @@ scanner before committing (for example `gitleaks git --staged` or the pre-commit
 ```
 -----BEGIN [A-Z ]*PRIVATE KEY-----        # Private keys
 AKIA[0-9A-Z]{16}                          # AWS access key ID
-gh[pousr]_[A-Za-z0-9]{36,}                # GitHub tokens
+gh[pousr]_[A-Za-z0-9]{36,}                # GitHub classic tokens
+github_pat_[A-Za-z0-9_]{60,}              # GitHub fine-grained tokens
+glpat-[A-Za-z0-9_-]{20,}                  # GitLab personal access tokens
 sk-[A-Za-z0-9_-]{20,}                     # Common LLM/SaaS API key prefix
+(sk|rk)_live_[A-Za-z0-9]{20,}             # Stripe live keys
+AIza[0-9A-Za-z_-]{35}                     # Google API keys
 xox[baprs]-[A-Za-z0-9-]{10,}              # Slack tokens
+eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.   # JWTs (may carry live sessions)
 (password|secret|token)\s*[:=]\s*["'][^"']{8,}["']   # Hardcoded credentials
 [a-z]+://[^/\s:@]+:[^/\s@]+@              # URL with embedded credentials
 ```

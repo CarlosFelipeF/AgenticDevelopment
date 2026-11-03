@@ -67,9 +67,10 @@ and built on the open [AGENTS.md](https://agents.md) convention, so one set of r
 | **Prompt-injection defence** | "Content is data, not instructions", plus Meta's Rule of Two |
 | **Supply-chain checks** | Verify packages exist before adding them (defends against AI "slopsquatting") |
 | **Definition of Done** | No "done" without evidence: tests, lint, secret scan |
-| **Enforcement kit** | Claude Code permissions + hook, pre-commit, GitHub Actions, CODEOWNERS |
-| **One source of truth** | Thin adapters for Claude Code, Copilot and Cursor point at `AGENTS.md` |
-| **`agent-doctor`** | Script that checks your setup and flags gaps |
+| **Enforcement kit** | Claude Code permissions, a shell-aware command guard, pre-commit, GitHub Actions, CODEOWNERS |
+| **Tested guardrails** | 150+ adversarial test cases for the command guard (`tests/`) |
+| **One source of truth** | Thin adapters for Claude Code, Copilot, Cursor, Gemini CLI and Aider point at `AGENTS.md` |
+| **`agent-doctor`** | Checks your setup, proves the hook really blocks, and lists manual checks |
 | **OWASP aligned** | Mapped to all ten OWASP Agentic risks, ASI01–ASI10 |
 
 ---
@@ -106,10 +107,12 @@ agents treat those files as examples only.
 
 | Tool | What to do |
 |------|------------|
-| Codex, Gemini CLI, Jules, Aider, Zed, Cursor and others | Nothing — they read `AGENTS.md` natively |
+| Codex, Jules, Copilot coding agent, Cursor, Zed, goose, Devin | Nothing — they read `AGENTS.md` natively |
 | Claude Code | `cp "$FW/examples/adapters/claude/CLAUDE.md" .` (imports `@AGENTS.md`) |
-| GitHub Copilot | `cp "$FW/examples/adapters/github/copilot-instructions.md" .github/` |
-| Cursor (always-on rule) | `cp "$FW/examples/adapters/cursor/agents.mdc" .cursor/rules/` |
+| Gemini CLI | `mkdir -p .gemini && cp "$FW/examples/adapters/gemini/settings.json" .gemini/` |
+| Aider | `cp "$FW/examples/adapters/aider/.aider.conf.yml" .` |
+| GitHub Copilot (IDE chat) | `mkdir -p .github && cp "$FW/examples/adapters/github/copilot-instructions.md" .github/` |
+| Cursor (always-on rule) | `mkdir -p .cursor/rules && cp "$FW/examples/adapters/cursor/agents.mdc" .cursor/rules/` |
 
 ### 4. Turn on enforcement
 
@@ -169,7 +172,9 @@ your-project/
 ├── GLOSSARY.md                      # Your domain terms
 ├── AGENTIC-SECURITY-CHECKLIST.md    # For humans: platform controls
 ├── examples/                        # Adapters and enforcement (copy what you need)
-└── scripts/agent-doctor.sh          # Setup checker
+├── scripts/agent-doctor.sh          # Setup checker for adopting projects
+├── scripts/self-test.sh             # Verifies this framework repository
+└── tests/                           # Adversarial tests for the command guard
 ```
 
 ---
@@ -304,9 +309,31 @@ Cursor reads `AGENTS.md`. For an always-on rule, copy
 [`agents.mdc`](examples/adapters/cursor/agents.mdc) to `.cursor/rules/`. The old `.cursorrules`
 file is a legacy format.
 
-### Codex, Gemini CLI, Jules, Aider, Zed and others
+### GitHub Copilot coding agent
+
+Reads `AGENTS.md` natively (including nested files). The `copilot-instructions.md` adapter covers
+Copilot Chat in IDEs.
+
+### Gemini CLI
+
+Reads `GEMINI.md` by default. Copy [`settings.json`](examples/adapters/gemini/settings.json) to
+`.gemini/` so it reads `AGENTS.md` instead.
+
+### Aider
+
+Copy [`.aider.conf.yml`](examples/adapters/aider/.aider.conf.yml) to your repo root. It loads
+`AGENTS.md` and the always-load `.agent/` files as read-only context.
+
+### Codex, Jules, Zed, goose, Devin and others
 
 These read `AGENTS.md` directly. Check your tool's docs for the current behaviour.
+
+### Monorepos and nested AGENTS.md
+
+Most tools read the **closest** `AGENTS.md` to the file being edited, and it wins for that folder.
+A nested file may add folder-specific rules but must not loosen the root Non-Negotiable Rules —
+say so at the top of each nested file. `agent-doctor` warns about nested files that don't, and the
+CODEOWNERS example protects `AGENTS.md` at every depth.
 
 ---
 
@@ -336,7 +363,7 @@ sensitive_paths:
 |-------|---------|:--:|
 | Instructions | `AGENTS.md`, `.agent/` | ❌ |
 | Tool permissions | Claude Code `deny` rules | ✅ |
-| Hooks | `guard-bash.sh` | ⚠️ Best-effort |
+| Command hook | `guard-bash.py` (shell-aware, tested) | ⚠️ Strong, with known gaps |
 | Pre-commit | gitleaks | ⚠️ Unless bypassed |
 | CI + branch protection + CODEOWNERS | `agent-guardrails.yml` | ✅ |
 | Sandbox + egress allowlist | Container, network policy | ✅ |
@@ -398,6 +425,12 @@ diff AGENTS.md "$FW/AGENTS.md"
 
 Read [`CHANGELOG.md`](CHANGELOG.md) first.
 
+### Why can't my agent edit AGENTS.md or `.agent/`?
+
+By design (ASI10 Rogue Agents). An agent that can rewrite its own rules has no rules. Edit those
+files yourself, or ask the agent to propose a diff for you to apply. The deny rules and CODEOWNERS
+enforce this.
+
 ### Does this replace security review?
 
 No. It reduces risk and makes agent work easier to review. Humans stay accountable for what merges.
@@ -430,18 +463,19 @@ Contributions are welcome.
 
 ### Reporting Issues
 Use GitHub Issues. Include your AI tool and version, framework version and steps to reproduce.
-**Report security problems privately** to the maintainer rather than in a public issue.
+**Report security problems privately** — see [`.github/SECURITY.md`](.github/SECURITY.md).
 
 ### Submitting Changes
 1. Fork the repository and create a branch (`git checkout -b feature/improvement`)
-2. Make your changes; run `scripts/agent-doctor.sh` and test examples you change
-3. Test with at least one AI assistant
-4. Update `CHANGELOG.md`
-5. Open a pull request — disclose AI assistance in the PR template
+2. Make your changes, then run `scripts/self-test.sh` — it must end with `ALL CHECKS PASSED`
+3. Changing the command guard? Add a test case for every bypass or false positive you fix
+4. Test with at least one AI assistant
+5. Update `CHANGELOG.md`
+6. Open a pull request — disclose AI assistance in the PR template
 
 ### Areas Needing Help
 - Adapters and enforcement examples for more tools (GitLab, Bitbucket, other agents)
-- Injection test cases for the guard hook
+- New bypass cases for `tests/test_guard_bash.py`
 - Translations and real-world case studies
 
 ---

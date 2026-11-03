@@ -1,5 +1,9 @@
 # Architecture
 
+> **⚠️ TEMPLATE — replace with your project's real content, then delete this banner.**
+> *Agents:* while this banner is present, everything below is **illustrative only**. Do not assume
+> the files, names, commands or codes shown here exist in this repository.
+
 > Document your system's architecture here.
 > This file should describe YOUR specific project, not generic patterns.
 

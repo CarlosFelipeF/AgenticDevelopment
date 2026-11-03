@@ -7,6 +7,18 @@
 3. **Explicit over implicit:** Make behavior obvious
 4. **Small functions:** Single responsibility, easy to test
 5. **Meaningful names:** Intent-revealing identifiers
+6. **Smallest correct change:** Solve the task asked; don't refactor or "improve" unrelated code
+
+## Rules for AI-Generated Code
+
+- **Match the codebase.** Copy the patterns, libraries and error handling already in use.
+  Do not introduce a new framework, style or dependency to solve a local problem.
+- **Verify APIs exist.** Check function signatures and library versions in the code or official
+  docs before using them. Never invent methods, flags, config keys or URLs.
+- **No placeholder logic.** No `// TODO: implement`, fake return values or mocked behaviour in
+  production code unless the human asked for a stub — and then say so in the summary.
+- **Keep diffs reviewable.** A human must be able to read every line you change.
+- **Write the test with the change.** New behaviour needs a test that fails without it.
 
 ## Formatting Standards
 
@@ -216,15 +228,14 @@ function parseInput(data: unknown): ParsedData {
 ### Python Type Hints
 
 ```python
-from typing import Optional, List
-
-def get_user(user_id: str) -> Optional[User]:
+# Python 3.10+: use built-in generics and `X | None`
+def get_user(user_id: str) -> User | None:
     """Fetch user by ID."""
-    pass
+    ...
 
-def process_users(users: List[User]) -> List[ProcessedUser]:
+def process_users(users: list[User]) -> list[ProcessedUser]:
     """Process a list of users."""
-    pass
+    ...
 ```
 
 ## Anti-Patterns to Avoid

@@ -1,5 +1,9 @@
 # Testing Strategy
 
+> **⚠️ TEMPLATE — replace with your project's real content, then delete this banner.**
+> *Agents:* while this banner is present, everything below is **illustrative only**. Do not assume
+> the files, names, commands or codes shown here exist in this repository.
+
 > Document your project's testing approach here.
 > This file should describe YOUR specific testing practices.
 
@@ -10,6 +14,18 @@
 - Prefer integration tests for critical paths
 - Unit tests for complex logic
 - E2E tests for user journeys
+
+## Rules for Agents
+
+These apply even while the rest of this file is still a template:
+
+- **Never delete, skip, or weaken a test to make it pass.** No `.skip`, `xfail`, loosened
+  assertions or raised timeouts without human approval.
+- **A failing test is information.** Fix the code, or explain why the test is wrong and ask.
+- **New behaviour needs a test** that fails without the change and passes with it.
+- **Show evidence.** Report the command you ran and the result. Never report a pass you did not see.
+- **Record the baseline.** If tests fail before your change, say so at the start.
+- **No real secrets or personal data in fixtures.** Use obviously fake values.
 
 ## Test Structure
 

@@ -112,13 +112,14 @@ Focused security review of changes.
 **Usage:** `/security-review`
 
 **Check for:**
-- Hardcoded secrets or credentials
-- SQL injection vulnerabilities
-- XSS vulnerabilities
-- Path traversal issues
-- Insecure dependencies
-- Missing input validation
-- Improper error handling (information disclosure)
+- Hardcoded secrets or credentials (run the secret scanner, don't eyeball it)
+- Injection: SQL, command, template, XSS, path traversal
+- New or changed dependencies — do they exist, are they the intended package, are they pinned?
+- Missing input validation or output encoding
+- Weakened auth, permissions, validation or tests
+- Error handling that leaks internals
+- Agent-specific risks: untrusted content reaching prompts, tools or shells; new outbound
+  network calls; anything that combines all three legs of the Rule of Two (see `SECURITY.md`)
 
 ## Git Commands
 
@@ -129,10 +130,11 @@ Create a well-formatted commit with staged changes.
 **Usage:** `/commit` (analyzes staged changes and proposes commit message)
 
 **Process:**
-1. Analyze `git diff --staged`
-2. Determine appropriate commit type
-3. Propose commit message following conventions
-4. Ask for approval before committing
+1. Analyse `git diff --staged` (stage specific paths only — never `git add .`)
+2. Run the secret scanner on staged changes
+3. Determine the commit type and write the message following `WORKFLOW.md`
+4. Show the message and file list, then commit on the working branch
+   (pushing still needs approval — see `CONSTRAINTS.md`)
 
 ### `/branch`
 
@@ -172,6 +174,38 @@ How to verify the changes.
 - [ ] Tests pass
 - [ ] Documentation updated
 - [ ] Self-reviewed
+```
+
+## Verification Commands
+
+### `/verify`
+
+Prove the current change works before calling it done.
+
+**Usage:** `/verify`
+
+**Process:**
+1. Run the project's checks from `.agent/PROJECT.md` (tests, lint, type check, build)
+2. Run the secret scanner on the diff
+3. Check the diff for scope creep, debug code, removed or skipped tests
+4. Report with evidence
+
+**Output format:**
+```markdown
+## Verification: <change>
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Tests | `npm test` | ✅ 142 passed |
+| Lint | `npm run lint` | ✅ clean |
+| Types | `npm run typecheck` | ❌ 2 errors (see below) |
+| Secrets | `gitleaks git --staged` | ✅ none found |
+
+### Not verified
+- Anything you could not run, and why
+
+### Verdict
+✅ Done | ⚠️ Done with caveats | ❌ Not done
 ```
 
 ## Testing Commands
@@ -280,6 +314,17 @@ Identify and fix code smells in a file or module.
 - Duplicate code
 - Overly complex functions
 - Inconsistent formatting
+
+## Session Commands
+
+### `/handoff`
+
+Write a handoff note so another session or agent can continue.
+
+**Usage:** `/handoff`
+
+**Output:** the handoff structure in `SESSIONS.md`, saved to `.agent/handoff/<branch>.md`
+(git-ignored by default), plus a WIP commit if there is uncommitted work.
 
 ## Status Commands
 

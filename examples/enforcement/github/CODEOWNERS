@@ -1,0 +1,16 @@
+# Copy to .github/CODEOWNERS and replace the team names.
+# With "Require review from Code Owners" turned on in branch protection, changes to
+# these paths cannot merge without the named humans — whatever an agent does.
+
+# Agent governance: agents must not change their own rules
+/AGENTS.md                         @your-org/security
+/CLAUDE.md                         @your-org/security
+/.agent/                           @your-org/security
+/.claude/                          @your-org/security
+/.cursor/                          @your-org/security
+/.github/copilot-instructions.md   @your-org/security
+
+# Guardrails and pipelines
+/.github/workflows/                @your-org/platform
+/.pre-commit-config.yaml           @your-org/platform
+/.github/CODEOWNERS                @your-org/security

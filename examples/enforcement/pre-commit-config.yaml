@@ -1,0 +1,24 @@
+# Copy to .pre-commit-config.yaml at your repository root, then run:
+#   pip install pre-commit   (or: brew install pre-commit / uv tool install pre-commit)
+#   pre-commit install
+#
+# These hooks run on every commit — for humans and agents alike. Agents must
+# never bypass them with --no-verify (see .agent/CONSTRAINTS.md).
+# Versions were current in November 2026; run `pre-commit autoupdate` to refresh.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks              # Secret scanning on staged changes
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]    # Matches the 1 MB limit in CONSTRAINTS.md
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace

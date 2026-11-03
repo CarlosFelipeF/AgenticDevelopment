@@ -15,3 +15,7 @@ secrets/
 # Agent local state
 .agent/handoff/
 .claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc

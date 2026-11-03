@@ -1,0 +1,7 @@
+# Copy to .aider.conf.yml at your repository root.
+# Loads AGENTS.md as read-only context in every Aider session.
+read:
+  - AGENTS.md
+  - .agent/SECURITY.md
+  - .agent/CONSTRAINTS.md
+  - .agent/PROJECT.md

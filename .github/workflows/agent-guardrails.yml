@@ -1,0 +1,100 @@
+# Dogfood: this repository runs the same guardrails it ships in examples/enforcement/github/.
+# Keep the two files in sync.
+# Server-side checks that hold even if an agent (or a human) skips local hooks.
+# Make the jobs required status checks in your branch protection rules.
+#
+# Security notes:
+# - Pin third-party actions to a full commit SHA in production (tags can be moved).
+# - `permissions` is minimal; checkouts do not keep the token on disk.
+# - No untrusted PR text (titles, bodies, branch names) is ever put into a `run:` script.
+name: agent-guardrails
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6          # Pin to a SHA in production
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks (checksum verified)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          file="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$file" "$base/$file"
+          curl -sSfL -o checksums.txt "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " ${file}\$" checksums.txt | sha256sum -c -
+          tar -xzf "$file" gitleaks
+
+      # Scan only the commits this event adds. A full-history scan would fail every
+      # PR forever because of one old secret. Run `gitleaks git .` once by hand to
+      # audit history, and rotate anything it finds.
+      - name: Scan new commits for secrets
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="${PR_BASE}..${PR_HEAD}"
+          elif [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            range="${PUSH_BEFORE}..${PUSH_AFTER}"
+          else
+            range="$PUSH_AFTER"
+          fi
+          ./gitleaks git --redact --verbose --log-opts="$range" .
+
+  # Needs the repository's Dependency graph turned on (Settings -> Advanced Security).
+  # Free for public repositories; private ones also need GitHub Advanced Security.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write                 # Lets the action post a summary comment
+    steps:
+      - uses: actions/dependency-review-action@v5   # Pin to a SHA in production
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure
+
+  governance-files:
+    # Flags PRs that change the rules or guardrails agents work under.
+    # CODEOWNERS + "Require review from Code Owners" is what actually blocks the merge.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check for governance changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD -- \
+            ':(glob)**/AGENTS.md' ':(glob)**/CLAUDE.md' ':(glob)**/GEMINI.md' \
+            .agent .claude .cursor .gemini .github/workflows .github/instructions \
+            .github/copilot-instructions.md .github/CODEOWNERS .pre-commit-config.yaml)"
+          if [ -n "$changed" ]; then
+            echo "::warning::This PR changes agent governance or guardrail files. A human security reviewer must approve it."
+            printf '%s\n' "$changed"
+            {
+              echo "### Governance files changed"
+              echo "A human security reviewer must approve these changes:"
+              printf -- '- `%s`\n' $changed
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -14,12 +14,29 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 
 ---
 
+## Coding Agent Baseline (start here)
+
+The ten controls that matter most for teams using AI coding agents. Copy-ready versions are in
+`examples/enforcement/`; check your setup with `scripts/agent-doctor.sh`.
+
+- [ ] **Protected `main`:** pull request required, at least one human approval, required status checks
+- [ ] **CODEOWNERS** on `AGENTS.md`, `.agent/`, tool config and CI workflows
+- [ ] **Secret scanning** at three points: pre-commit, CI, and host push protection
+- [ ] **Tool permission deny-lists** for secret files, force push, `--no-verify` and `sudo`
+- [ ] **Sandboxed execution:** agents run in a container or VM, not on a laptop with your SSH keys
+- [ ] **Egress allowlist:** agents can reach package registries and docs, not arbitrary hosts
+- [ ] **Separate agent credentials** with least privilege and short lifetimes
+- [ ] **Approved MCP servers / plugins list**, reviewed like any other dependency
+- [ ] **Dependency review** in CI blocks known-vulnerable and unexpected packages
+- [ ] **Audit trail:** agent sessions, tool calls and approvals are logged and kept
+
 ## OWASP Agentic Security Controls
 
-### ASI01: Prompt Injection Prevention
+### ASI01: Agent Goal Hijack
 
 **Platform Controls:**
-- [ ] Input sanitization layer before prompts reach agents
+- [ ] Untrusted content (issues, web pages, files, tool output) is labelled and isolated from instructions
+- [ ] Rule of Two applied: no agent session combines untrusted input, sensitive data and external actions without human approval
 - [ ] Instruction hierarchy enforcement (system > user > context)
 - [ ] Prompt logging for audit and detection
 - [ ] Anomaly detection for injection patterns
@@ -31,7 +48,7 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Monitor: Unusual prompt patterns trigger alerts
 ```
 
-### ASI02: Tool Access Control
+### ASI02: Tool Misuse & Exploitation
 
 **Platform Controls:**
 - [ ] Tool allowlisting per agent role
@@ -46,10 +63,16 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Alert: Blocked tool calls trigger review
 ```
 
-### ASI03: Privilege & Credential Management
+**Repo-level evidence:** `hooks/scripts/guard-bash.py` (including the commit secret scan) and
+`block-secret-write.sh` deny dangerous tool calls at the harness level (registered in
+`hooks/hooks.json`, tested in `tests/`).
+
+### ASI03: Identity & Privilege Abuse
 
 **Platform Controls:**
+- [ ] Agents have their own identities (not a human's personal token)
 - [ ] Least-privilege IAM roles for agent operations
+- [ ] Short-lived, task-scoped credentials where possible
 - [ ] Credential rotation automated (< 90 days)
 - [ ] No long-lived credentials in agent context
 - [ ] Secrets injected at runtime, never stored in prompts
@@ -61,13 +84,15 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Rotate: Automated rotation schedule configured
 ```
 
-### ASI04: Supply Chain Security
+### ASI04: Agentic Supply Chain Vulnerabilities
 
 **Platform Controls:**
 - [ ] MCP server validation and signing
 - [ ] Dependency scanning in CI/CD
 - [ ] SBOM generation for agent deployments
 - [ ] Verified publisher requirements for plugins/tools
+- [ ] New dependencies checked for existence and reputation (AI "slopsquatting" defence)
+- [ ] GitHub Actions and other CI dependencies pinned to commit SHAs
 
 **Implementation Notes:**
 ```
@@ -76,7 +101,7 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Audit: Dependency changes reviewed before merge
 ```
 
-### ASI05: Sandbox & Execution Isolation
+### ASI05: Unexpected Code Execution (RCE)
 
 **Platform Controls:**
 - [ ] Container/VM isolation for agent execution
@@ -91,7 +116,11 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Monitor: Resource usage tracked and alerted
 ```
 
-### ASI06: Memory & Context Integrity
+**Repo-level evidence:** `hooks/scripts/protect-files.sh` blocks credential and system folders
+for file tools; `guard-bash.py` blocks `curl | sh`, `bash -c "$(curl …)"` and similar for shell
+commands. A first line of defence — container or VM isolation is still required.
+
+### ASI06: Memory & Context Poisoning
 
 **Platform Controls:**
 - [ ] Session isolation between users/tasks
@@ -106,7 +135,7 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Encrypt: At-rest encryption for persisted context
 ```
 
-### ASI07: Inter-Agent Communication Security
+### ASI07: Insecure Inter-Agent Communication
 
 **Platform Controls:**
 - [ ] Agent-to-agent authentication required
@@ -121,7 +150,7 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Log: All inter-agent messages logged with timestamps
 ```
 
-### ASI08: Cascading Failure Prevention
+### ASI08: Cascading Failures
 
 **Platform Controls:**
 - [ ] Circuit breakers between agent components
@@ -136,13 +165,15 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Fallback: Degraded mode behavior defined
 ```
 
-### ASI09: Trust & Social Engineering Defense
+### ASI09: Human-Agent Trust Exploitation
 
 **Platform Controls:**
 - [ ] Agent identity verification mechanisms
 - [ ] Claimed permission validation against actual grants
 - [ ] Audit logging of permission checks
 - [ ] Human-in-the-loop for privilege escalation
+- [ ] Reviewers can see which changes were agent-authored (commit trailers, PR template)
+- [ ] Approval prompts show the exact action, not a summary an agent wrote
 
 **Implementation Notes:**
 ```
@@ -151,13 +182,14 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Approve: Human approval workflow implemented
 ```
 
-### ASI10: Guardrail Enforcement
+### ASI10: Rogue Agents
 
 **Platform Controls:**
 - [ ] Kill switch for immediate agent termination
 - [ ] Real-time monitoring of agent behavior
 - [ ] Automated policy violation response
 - [ ] Guardrail bypass detection and alerting
+- [ ] Agents cannot change their own governance files or permissions (CODEOWNERS, deny rules)
 
 **Implementation Notes:**
 ```
@@ -165,6 +197,10 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 □ Monitor: Real-time behavior analysis running
 □ Alert: Policy violations trigger immediate review
 ```
+
+**Repo-level evidence:** the plugin hooks deny edits to `AGENTS.md`, `.agent/`, `.claude/` and
+`.git/hooks/` from shell commands; the Claude Code deny rules in `examples/enforcement/` cover the
+Edit and Write tools; CODEOWNERS makes a named human approve any change.
 
 ---
 
@@ -201,6 +237,7 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 | Tool Invocations | Audit table in database |
 | Configuration | Version control + config management |
 | Incidents | Incident management system |
+| Repo-level hook denials | `hooks/scripts/` (rules) + `tests/` (proof) + each session transcript's `hookSpecificOutput` entries |
 
 ---
 
@@ -215,5 +252,5 @@ AGENTS.md tells agents how to behave. This checklist ensures the platform enforc
 
 ---
 
-*This checklist aligns with OWASP Agentic Security Initiative (ASI01-10).*
-*Last updated: 2026-01*
+*This checklist aligns with the [OWASP Top 10 for Agentic Applications (2026)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/), ASI01–ASI10.*
+*Last updated: 2026-11*

@@ -1,0 +1,28 @@
+# Runs scripts/self-test.sh: hook syntax, 150+ adversarial guard tests, plugin hook tests,
+# config validation, internal links, version consistency and agent-doctor.
+name: self-test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6          # Pin to a SHA in production
+        with:
+          persist-credentials: false
+      - name: Show tool versions
+        run: |
+          python3 --version
+          bash --version | head -1
+          jq --version
+          git --version
+      - name: Run self-test
+        run: scripts/self-test.sh

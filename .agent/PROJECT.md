@@ -1,5 +1,9 @@
 # PROJECT.md — Project Configuration
 
+> **⚠️ TEMPLATE — replace with your project's real content, then delete this banner.**
+> *Agents:* while this banner is present, everything below is **illustrative only**. Do not assume
+> the files, names, commands or codes shown here exist in this repository.
+
 > Template file. Customize this for your specific project.
 > This file can override configurable rules from other `.agent/` files.
 
@@ -16,6 +20,44 @@
 <!-- Optional: Help agent understand team structure -->
 **Team Size:** [Solo | Small team | Large team]
 **Review Process:** [PR required | Pair programming | Self-merge allowed]
+
+## Verification Commands (used by `/verify` and the Definition of Done)
+
+<!-- Agents run these before claiming any task is done. Keep them fast and accurate. -->
+```bash
+npm test                       # Tests
+npm run lint                   # Lint
+npm run typecheck              # Type check
+npm run build                  # Build
+gitleaks git --staged          # Secret scan (see examples/enforcement/)
+```
+
+## Agent Settings
+
+```yaml
+# Autonomy: how much the agent may do without asking (see CONSTRAINTS.md)
+autonomy: supervised           # supervised | standard | restricted
+
+# AI attribution trailer added to agent commits (see WORKFLOW.md)
+ai_trailer: "Co-authored-by"   # or "Assisted-by"
+
+# Network: domains the agent may fetch to verify facts (everything else: ask first)
+allowed_domains:
+  - docs.python.org
+  - developer.mozilla.org
+  - registry.npmjs.org
+  - pypi.org
+
+# MCP servers, plugins and skills the team has reviewed and approved
+approved_tools:
+  - github                     # example — list only what you have reviewed
+
+# Areas that always need a named human reviewer
+sensitive_paths:
+  - src/auth/**
+  - src/payments/**
+  - migrations/**
+```
 
 ## Custom Commands
 
@@ -94,6 +136,9 @@ NODE_ENV=development
 
 <!-- Override rules from other .agent/ files here -->
 <!-- This section can override configurable settings from WORKFLOW.md and CONVENTIONS.md -->
+
+<!-- You may tighten any default. You may NOT loosen the Non-Negotiable Rules in AGENTS.md
+     or the "Never" list in CONSTRAINTS.md. -->
 
 ### Workflow Overrides
 

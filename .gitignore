@@ -1,6 +1,21 @@
+# OS and editor
 .DS_Store
 *.swp
 *.swo
 *~
+
+# Secrets — never commit (see .agent/SECURITY.md)
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Agent local state
+.agent/handoff/
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc

@@ -1,5 +1,9 @@
 # Glossary
 
+> **⚠️ TEMPLATE — replace with your project's real content, then delete this banner.**
+> *Agents:* while this banner is present, everything below is **illustrative only**. Do not assume
+> the files, names, commands or codes shown here exist in this repository.
+
 > Domain terminology and project-specific definitions.
 > Helps agents and new team members understand the codebase vocabulary.
 

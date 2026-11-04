@@ -1,0 +1,20 @@
+# Copy to .github/CODEOWNERS and replace the team names.
+# With "Require review from Code Owners" turned on in branch protection, changes to
+# these paths cannot merge without the named humans — whatever an agent does.
+# Later lines take precedence over earlier ones.
+
+# Agent instructions at any depth (a nested AGENTS.md overrides the root one for its folder)
+AGENTS.md                          @your-org/security
+CLAUDE.md                          @your-org/security
+GEMINI.md                          @your-org/security
+/.agent/                           @your-org/security
+/.claude/                          @your-org/security
+/.cursor/                          @your-org/security
+/.gemini/                          @your-org/security
+/.github/copilot-instructions.md   @your-org/security
+/.github/instructions/             @your-org/security
+
+# Guardrails and pipelines
+/.github/workflows/                @your-org/platform
+/.pre-commit-config.yaml           @your-org/platform
+/.github/CODEOWNERS                @your-org/security

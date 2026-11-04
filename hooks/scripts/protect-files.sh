@@ -44,18 +44,25 @@ deny() {
 # ".claude/Settings.json" is the same file). Lowercasing everywhere can only add an
 # approval prompt on Linux, never remove a block. Needs python3, like guard-bash.py;
 # without it the raw path is used.
+# canon PATH BASE [norm]: absolute path with symlinks resolved; with "norm", only "." and
+# "//" are collapsed and symlinks are kept (macOS links /home to /System/Volumes/Data/home,
+# so prefix checks like "is this under /home?" must use the unresolved form).
 canon() {
   python3 -c 'import os, sys
 p = os.path.expanduser(sys.argv[1])
 if not os.path.isabs(p):
     p = os.path.join(sys.argv[2] or os.getcwd(), p)
-print(os.path.realpath(p))' "$1" "${2:-}" 2>/dev/null || printf '%s' "$1"
+print(os.path.normpath(p) if sys.argv[3] == "norm" else os.path.realpath(p))' "$1" "${2:-}" "${3:-}" 2>/dev/null \
+    || printf '%s' "$1"
 }
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
-P="$(lower "$(canon "$FILE_PATH" "$CWD")")"
-C=""; [ -n "$CWD" ] && C="$(lower "$(canon "$CWD" "")")"
-H=""; [ -n "${HOME:-}" ] && H="$(lower "$(canon "$HOME" "")")"
+P="$(lower "$(canon "$FILE_PATH" "$CWD")")"          # resolved: for guardrail patterns
+N="$(lower "$(canon "$FILE_PATH" "$CWD" norm)")"     # unresolved: for location checks
+C=""; CN=""
+if [ -n "$CWD" ]; then C="$(lower "$(canon "$CWD" "")")"; CN="$(lower "$(canon "$CWD" "" norm)")"; fi
+H=""; HN=""
+if [ -n "${HOME:-}" ]; then H="$(lower "$(canon "$HOME" "")")"; HN="$(lower "$(canon "$HOME" "" norm)")"; fi
 BASENAME="$(basename "$P")"
 
 # Credential directories: hard deny for every matched tool, reads included.
@@ -81,8 +88,12 @@ esac
 
 # Home folders outside the project (Linux /home, macOS /Users), including other projects'
 # .claude/ folders. The only exemption is your own Claude Code memory folder.
-if [[ ( "$P" = /home/* || "$P" = /users/* ) && -n "$C" && "$P" != "$C"/* ]]; then
-  if [[ -z "$H" || "$P" != "$H"/.claude/projects/*/memory/* ]]; then
+in_homes() {
+  case "$1" in /home/*|/users/*|/system/volumes/data/home/*|/system/volumes/data/users/*) return 0 ;; esac
+  return 1
+}
+if { in_homes "$N" || in_homes "$P"; } && [ -n "$C" ] && [[ "$P" != "$C"/* && "$N" != "$CN"/* ]]; then
+  if [[ -z "$H" || ( "$P" != "$H"/.claude/projects/*/memory/* && "$N" != "$HN"/.claude/projects/*/memory/* ) ]]; then
     deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory."
   fi
 fi

@@ -116,7 +116,8 @@ The ten controls that matter most for teams using AI coding agents. Copy-ready v
 □ Monitor: Resource usage tracked and alerted
 ```
 
-**Repo-level evidence:** `hooks/scripts/protect-files.sh` blocks credential and system folders
+**Repo-level evidence:** the example Claude Code settings turn on the OS-level sandbox with
+`failIfUnavailable` and a network allowlist. `hooks/scripts/protect-files.sh` blocks credential and system folders
 for file tools; `guard-bash.py` blocks `curl | sh`, `bash -c "$(curl …)"` and similar for shell
 commands. A first line of defence — container or VM isolation is still required.
 

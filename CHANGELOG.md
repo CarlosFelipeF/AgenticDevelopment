@@ -3,6 +3,31 @@
 All notable changes to this framework are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [3.1.0] — 2026-11-04
+
+### Security
+- **The plugin now stops agents editing their own guardrails (ASI10 Rogue Agents).**
+  `protect-files.sh` blocks Write/Edit to `.claude/settings*.json`, `.claude/hooks/`, installed
+  plugins and `.git/hooks/`, and asks before edits to `AGENTS.md`, `CLAUDE.md`, `.agent/`,
+  `.cursor/rules/`, `CODEOWNERS` and pre-commit config. Before this, only the optional example
+  deny rules covered these, so plugin-only users had no protection for the Edit and Write tools.
+- **OS-level sandbox in the example settings**, with `failIfUnavailable: true` (no silent
+  unsandboxed fallback), `allowUnsandboxedCommands: false`, a network allowlist and credential
+  folders denied for reads.
+- **GitHub Actions pinned to full commit SHAs** in this repo's workflows and the examples, with
+  Dependabot (`.github/dependabot.yml` and an example copy) to keep them current. `self-test`
+  fails on any unpinned `uses:`.
+
+### Fixed
+- `protect-files.sh` blocked every write under `/home/...` outside the project — including
+  Claude Code's own memory files in `~/.claude/` — for Linux users. Claude Code's `.claude/`
+  folder is now exempt (its settings, hooks and plugins stay blocked), and the same
+  outside-the-project rule now covers macOS `/Users/...` paths, which it used to skip.
+
+### Changed
+- CI runs `self-test` on Linux and macOS. On macOS every bash hook runs under `/bin/bash`
+  (bash 3.2), so the portability fixes from 3.0.0 are now actually tested.
+
 ## [3.0.0] — 2026-11-04
 
 Combines the plugin work from PR #3 with the hardening and enforcement kit from this branch.

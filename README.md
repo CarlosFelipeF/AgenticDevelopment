@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OWASP](https://img.shields.io/badge/OWASP-Agentic%20Top%2010%202026-orange.svg)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-purple.svg)](https://agents.md)
-[![Framework](https://img.shields.io/badge/Framework-v3.0.0-green.svg)](CHANGELOG.md)
+[![Framework](https://img.shields.io/badge/Framework-v3.1.0-green.svg)](CHANGELOG.md)
 
 **A governance framework for AI coding agents** — clear rules for the agent, and real controls
 around it, so AI-assisted development stays secure, consistent and reviewable.
@@ -386,7 +386,7 @@ sensitive_paths:
 | Plugin hooks | `guard-bash.py`, secret commit/write, protected folders (tested) | ⚠️ Strong, with known gaps |
 | Pre-commit | gitleaks | ⚠️ Unless bypassed |
 | CI + branch protection + CODEOWNERS | `agent-guardrails.yml` | ✅ |
-| Sandbox + egress allowlist | Container, network policy | ✅ |
+| Sandbox + egress allowlist | Claude Code sandbox (example settings), container, network policy | ✅ |
 
 ### OWASP Top 10 for Agentic Applications (2026)
 
@@ -448,8 +448,9 @@ Read [`CHANGELOG.md`](CHANGELOG.md) first.
 ### Why can't my agent edit AGENTS.md or `.agent/`?
 
 By design (ASI10 Rogue Agents). An agent that can rewrite its own rules has no rules. Edit those
-files yourself, or ask the agent to propose a diff for you to apply. The deny rules and CODEOWNERS
-enforce this.
+files yourself, or ask the agent to propose a diff for you to apply. With the plugin, edits to
+`AGENTS.md` and `.agent/` need your approval each time, and edits to `.claude/` settings, hooks,
+plugins and `.git/hooks/` are blocked. The example deny rules and CODEOWNERS add further layers.
 
 ### Does this replace security review?
 
@@ -459,14 +460,20 @@ No. It reduces risk and makes agent work easier to review. Humans stay accountab
 
 ## Roadmap
 
-### v3.0.0 (Current)
+### v3.1.0 (Current)
+- Plugin blocks agents editing their own guardrails and asks before rule-file edits
+- Claude Code OS-level sandbox in the example settings (fails closed if unavailable)
+- GitHub Actions pinned to commit SHAs, kept current by Dependabot
+- CI on Linux and macOS (bash 3.2)
+
+### v3.0.0
 - Claude Code plugin: enforcement hooks and slash-command skills
 - Shell-aware command guard with 150+ adversarial tests
 - Correct OWASP Agentic Top 10 (2026) mapping; Rule of Two; Definition of Done
 - Progressive context loading
 - Enforcement kit, tool adapters, `agent-doctor` and `self-test`
 
-### v3.1.0 (Planned)
+### v3.2.0 (Planned)
 - Multi-agent orchestration protocols (sub-agent permissions, handoff integrity)
 - Adapters for more tools; MCP server review checklist
 

@@ -57,6 +57,8 @@ jobs:
           fi
           ./gitleaks git --redact --verbose --log-opts="$range" .
 
+  # Needs the repository's Dependency graph turned on (Settings -> Advanced Security).
+  # Free for public repositories; private ones also need GitHub Advanced Security.
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

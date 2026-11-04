@@ -63,6 +63,10 @@ The ten controls that matter most for teams using AI coding agents. Copy-ready v
 □ Alert: Blocked tool calls trigger review
 ```
 
+**Repo-level evidence:** `hooks/scripts/guard-bash.py`, `block-secret-commit.sh` and
+`block-secret-write.sh` deny dangerous tool calls at the harness level (registered in
+`hooks/hooks.json`, tested in `tests/`).
+
 ### ASI03: Identity & Privilege Abuse
 
 **Platform Controls:**
@@ -111,6 +115,10 @@ The ten controls that matter most for teams using AI coding agents. Copy-ready v
 □ Network: Egress allowlist defined and enforced
 □ Monitor: Resource usage tracked and alerted
 ```
+
+**Repo-level evidence:** `hooks/scripts/protect-files.sh` blocks credential and system folders
+for file tools; `guard-bash.py` blocks `curl | sh`, `bash -c "$(curl …)"` and similar for shell
+commands. A first line of defence — container or VM isolation is still required.
 
 ### ASI06: Memory & Context Poisoning
 
@@ -190,6 +198,10 @@ The ten controls that matter most for teams using AI coding agents. Copy-ready v
 □ Alert: Policy violations trigger immediate review
 ```
 
+**Repo-level evidence:** the plugin hooks deny edits to `AGENTS.md`, `.agent/`, `.claude/` and
+`.git/hooks/` from shell commands; the Claude Code deny rules in `examples/enforcement/` cover the
+Edit and Write tools; CODEOWNERS makes a named human approve any change.
+
 ---
 
 ## Deployment Checklist
@@ -225,6 +237,7 @@ The ten controls that matter most for teams using AI coding agents. Copy-ready v
 | Tool Invocations | Audit table in database |
 | Configuration | Version control + config management |
 | Incidents | Incident management system |
+| Repo-level hook denials | `hooks/scripts/` (rules) + `tests/` (proof) + each session transcript's `hookSpecificOutput` entries |
 
 ---
 

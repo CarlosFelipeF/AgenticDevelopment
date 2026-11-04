@@ -1,0 +1,14 @@
+{
+  "name": "agent-governance-framework-marketplace",
+  "owner": {
+    "name": "Carlos Felipe Franca da Fonseca"
+  },
+  "description": "Self-hosted marketplace for the Agent Governance Framework plugin.",
+  "plugins": [
+    {
+      "name": "agent-governance-framework",
+      "source": "./",
+      "description": "OWASP ASI-aligned security hooks, dev workflow skills, and layered governance conventions for AI coding agents."
+    }
+  ]
+}

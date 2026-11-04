@@ -1,4 +1,4 @@
-"""Adversarial tests for examples/enforcement/claude/hooks/guard-bash.py.
+"""Adversarial tests for hooks/scripts/guard-bash.py.
 
 Run:  python3 -m unittest discover -s tests -v
 
@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HOOK = os.path.join(ROOT, "examples", "enforcement", "claude", "hooks", "guard-bash.py")
+HOOK = os.path.join(ROOT, "hooks", "scripts", "guard-bash.py")
 
 BLOCK = [
     # Running downloaded or piped code (ASI05)

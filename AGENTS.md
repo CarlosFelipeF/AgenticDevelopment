@@ -1,4 +1,4 @@
-# AGENTS.md — Agent Governance Framework v2.1.0
+# AGENTS.md — Agent Governance Framework v3.0.0
 
 > **For AI coding agents.** This file sets the rules, permissions and workflow for this repository.
 > Human developers: see `AGENTIC-SECURITY-CHECKLIST.md` for the controls that *enforce* these rules.
@@ -37,13 +37,35 @@ Load only what the task needs. Large context costs tokens and dilutes attention.
 | `.agent/WORKFLOW.md`     | Branch, commit, push or open a PR               |
 | `.agent/CONVENTIONS.md`  | Write or review code                            |
 | `.agent/SESSIONS.md`     | Start, resume, hand off or end long work        |
-| `.agent/PROTOCOLS.md`    | Run a slash command (`/plan`, `/verify`, ...)   |
+| `skills/<name>/SKILL.md` | Run a slash command (`/plan`, `/verify`, ...)   |
 | `ARCHITECTURE.md`        | Change structure, add components or services    |
 | `TESTING.md`             | Write, run or change tests                      |
 | `GLOSSARY.md`            | Meet an unfamiliar domain term                  |
 
 If a project-context file still carries the **TEMPLATE** banner, treat its contents as
 illustrative only. Do not assume the files, names or codes in it exist.
+
+## Deterministic Enforcement
+
+When this framework is installed as a Claude Code plugin (`.claude-plugin/plugin.json`), these
+rules are enforced by `PreToolUse` hooks in `hooks/hooks.json`. The harness runs them whatever the
+model decides, so they hold even under prompt injection:
+
+| Rule | Enforced by |
+|------|-------------|
+| No running downloaded code, skipping hooks, force or main pushes, secret reads or exfiltration, destructive deletes, `sudo`, or shell edits to governance files | `hooks/scripts/guard-bash.py` |
+| No committing secrets (scans the staged diff) | `hooks/scripts/block-secret-commit.sh` |
+| No writing secrets to disk | `hooks/scripts/block-secret-write.sh` |
+| Protected files need approval; credential and system folders are blocked | `hooks/scripts/protect-files.sh` |
+
+**Limits:** the shell guard parses commands like a shell and is tested against 150+ cases
+(`tests/`), but it cannot see what a script does after it is written to disk. Treat hooks as
+defence in depth alongside branch protection, CODEOWNERS and a sandbox — not as a sandbox.
+Rules that can't be checked mechanically (e.g. "ask before a large refactor") stay a cooperative
+contract.
+
+Slash commands ship as skills in `skills/*/SKILL.md` and are discovered automatically by the
+plugin. You don't need to load them into context.
 
 ## Precedence Rules
 
@@ -94,10 +116,10 @@ A task is done only when:
 | Commit, branch or open a PR     | `.agent/WORKFLOW.md`    |
 | Run tests                       | `TESTING.md`            |
 | Understand the system           | `ARCHITECTURE.md`       |
-| Use slash commands              | `.agent/PROTOCOLS.md`   |
+| Use slash commands              | `skills/`               |
 
 ---
 
-*Framework version: 2.1.0 | Aligned with the OWASP Top 10 for Agentic Applications (2026), ASI01–ASI10.*
-*These rules guide a cooperative agent. They are enforced by the controls in `AGENTIC-SECURITY-CHECKLIST.md`
-and `examples/enforcement/` — not by this file alone.*
+*Framework version: 3.0.0 | Aligned with the OWASP Top 10 for Agentic Applications (2026), ASI01–ASI10.*
+*These rules guide a cooperative agent. They are enforced by the plugin hooks in `hooks/`, the controls in
+`examples/enforcement/` and `AGENTIC-SECURITY-CHECKLIST.md` — not by this file alone.*

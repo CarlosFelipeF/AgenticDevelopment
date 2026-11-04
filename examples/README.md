@@ -12,7 +12,7 @@ Copy what you need into your project. Nothing here is active in this repository.
 |-------|--------------|:--:|-------|
 | 1. Instructions | Tells the agent the rules | ❌ Guidance only | `AGENTS.md`, `.agent/` |
 | 2. Tool permissions | The agent's tool refuses denied actions | ✅ In that tool | `enforcement/claude/settings.json` |
-| 3. Command hook | Parses each shell command before it runs | ⚠️ Strong, not perfect | `enforcement/claude/hooks/guard-bash.py` |
+| 3. Hooks | Check each command and file action before it runs | ⚠️ Strong, not perfect | `../hooks/` (plugin) |
 | 4. Pre-commit | Blocks secrets and junk at commit time | ⚠️ Unless bypassed | `enforcement/pre-commit-config.yaml` |
 | 5. CI + branch protection + CODEOWNERS | Server-side checks; named humans must approve | ✅ Yes | `enforcement/github/` |
 | 6. Sandbox + egress control | Limits what any process can reach | ✅ Yes | Your platform — see `AGENTIC-SECURITY-CHECKLIST.md` |
@@ -36,17 +36,32 @@ Keep shared rules in `AGENTS.md`. Each tool gets, at most, a thin pointer.
 
 ## Enforcement — quick install
 
-Run these yourself (not through your agent — the guard is designed to block agents from writing
+Run these yourself (not through your agent — the hooks are designed to block agents from writing
 to `.claude/`).
 
+**Claude Code hooks — recommended: the plugin** (installs all hooks and skills):
+```
+/plugin install agent-governance-framework --marketplace CarlosFelipeF/AgenticDevelopment
+```
+(On Claude Code versions older than 2.1.275, first run
+`/plugin marketplace add CarlosFelipeF/AgenticDevelopment`, then `/plugin install agent-governance-framework`.)
+Then copy only the `permissions` block of `enforcement/claude/settings.json` into your
+`.claude/settings.json` — the plugin registers the hooks itself.
+
+**Without the plugin**, copy the hooks into the project and use the full settings file:
 ```bash
 # From your project root, with this framework checked out at ../AgenticDevelopment
-FW=../AgenticDevelopment/examples
+FW=../AgenticDevelopment
 
-# Claude Code permissions + command guard (needs Python 3.8+)
+# Claude Code permissions + hooks (needs Python 3.8+, bash and jq)
 mkdir -p .claude/hooks
-cp "$FW/enforcement/claude/settings.json" .claude/settings.json
-cp "$FW/enforcement/claude/hooks/guard-bash.py" .claude/hooks/
+cp "$FW/examples/enforcement/claude/settings.json" .claude/settings.json
+cp "$FW"/hooks/scripts/* .claude/hooks/
+```
+
+**For every project:**
+```bash
+FW=../AgenticDevelopment/examples
 
 # Pre-commit secret scanning
 cp "$FW/enforcement/pre-commit-config.yaml" .pre-commit-config.yaml
@@ -67,7 +82,14 @@ cp "$FW/enforcement/github/CODEOWNERS" .github/CODEOWNERS   # edit the team name
 - Turn on secret scanning push protection if your host offers it
 - Give agents their own credentials with the least access they need — never your personal admin token
 
-## What the command guard blocks
+## What the hooks block
+
+| Hook | Watches | Blocks |
+|------|---------|--------|
+| `guard-bash.py` | Shell commands | Everything in the list below |
+| `block-secret-commit.sh` | `git commit` | Commits whose staged diff contains a secret |
+| `block-secret-write.sh` | Write / Edit | Writing a secret into a file |
+| `protect-files.sh` | Read / Write / Edit | Credential and system folders; asks before protected files |
 
 `guard-bash.py` tokenises commands like a shell (quotes, pipes, `&&`, `$(...)`, heredocs), so
 words inside a commit message don't trigger it and quoting tricks don't hide a command. It blocks:
@@ -84,7 +106,8 @@ words inside a commit message don't trigger it and quoting tricks don't hide a c
 - **Self-modification:** writing to `AGENTS.md`, `CLAUDE.md`, `.agent/`, `.claude/`, `.git/hooks/`,
   CI workflows or pre-commit config — through redirects, `sed -i`, `tee`, `cp`, `mv` or inline code
 
-Proof: `python3 -m unittest discover -s tests` runs 150+ attack and everyday-command cases.
+Proof: `python3 -m unittest discover -s tests` runs 150+ attack and everyday-command cases
+against `guard-bash.py`, plus tests for the other three hooks.
 
 **Known gaps (why layers 5 and 6 still matter):**
 - A script written to disk and then run (`bash ./x.sh`) is not inspected.
@@ -92,9 +115,9 @@ Proof: `python3 -m unittest discover -s tests` runs 150+ attack and everyday-com
 - `grep -r` over the whole repo can still print `.env` contents. Claude Code applies `Read` deny
   rules to its own Grep tool on a best-effort basis; shell `grep -r` is not covered. Keep real
   secrets out of the working tree where you can (use a secret manager or `~/.config`).
-- Hooks fail open if `python3` is missing — `agent-doctor` checks for this.
+- Hooks fail open if `python3` or `jq` is missing — `agent-doctor` checks for both.
 
-Found a bypass? Add it to `tests/test_guard_bash.py` and open an issue.
+Found a bypass? Report it privately (see `.github/SECURITY.md`), then add a test case.
 
 ## Notes
 

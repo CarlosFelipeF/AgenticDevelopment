@@ -129,7 +129,13 @@ if [ -f .claude/settings.json ] && grep -q 'guard-bash' .claude/settings.json; t
   fi
 fi
 
+if ls .claude/hooks/*.sh >/dev/null 2>&1; then
+  command -v jq >/dev/null 2>&1 && pass "jq installed (needed by the shell hooks)" \
+    || fail "the hooks in .claude/hooks/*.sh need jq, which is not installed (they would fail open)"
+fi
+
 echo "Manual checks (cannot be verified from a clone)"
+info "Plugin installs live outside the repo: run /plugin in Claude Code to confirm agent-governance-framework is enabled"
 info "Branch protection on main: PR required, human approval, required status checks"
 info "\"Require review from Code Owners\" turned on"
 info "Secret scanning push protection turned on at your Git host"

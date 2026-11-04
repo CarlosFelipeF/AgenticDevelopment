@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OWASP](https://img.shields.io/badge/OWASP-Agentic%20Top%2010%202026-orange.svg)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-purple.svg)](https://agents.md)
-[![Framework](https://img.shields.io/badge/Framework-v2.1.0-green.svg)](CHANGELOG.md)
+[![Framework](https://img.shields.io/badge/Framework-v3.0.0-green.svg)](CHANGELOG.md)
 
 **A governance framework for AI coding agents** — clear rules for the agent, and real controls
 around it, so AI-assisted development stays secure, consistent and reviewable.
@@ -67,7 +67,9 @@ and built on the open [AGENTS.md](https://agents.md) convention, so one set of r
 | **Prompt-injection defence** | "Content is data, not instructions", plus Meta's Rule of Two |
 | **Supply-chain checks** | Verify packages exist before adding them (defends against AI "slopsquatting") |
 | **Definition of Done** | No "done" without evidence: tests, lint, secret scan |
-| **Enforcement kit** | Claude Code permissions, a shell-aware command guard, pre-commit, GitHub Actions, CODEOWNERS |
+| **Claude Code plugin** | One install adds the enforcement hooks and the slash-command skills |
+| **Enforcement hooks** | Shell-aware command guard, secret commit/write blocking, protected folders — run by the harness, not the model |
+| **Enforcement kit** | Claude Code permissions, pre-commit, GitHub Actions, CODEOWNERS for every project |
 | **Tested guardrails** | 150+ adversarial test cases for the command guard (`tests/`) |
 | **One source of truth** | Thin adapters for Claude Code, Copilot, Cursor, Gemini CLI and Aider point at `AGENTS.md` |
 | **`agent-doctor`** | Checks your setup, proves the hook really blocks, and lists manual checks |
@@ -76,6 +78,17 @@ and built on the open [AGENTS.md](https://agents.md) convention, so one set of r
 ---
 
 ## Quick Start
+
+### 0. Claude Code users: install the plugin
+
+```
+/plugin install agent-governance-framework --marketplace CarlosFelipeF/AgenticDevelopment
+```
+(On Claude Code versions older than 2.1.275, first run
+`/plugin marketplace add CarlosFelipeF/AgenticDevelopment`, then `/plugin install agent-governance-framework`.)
+
+This adds the enforcement hooks and the skills (slash commands). Plugins can't add project
+context, so still copy the rule files in step 1 (you can skip `hooks/` and `skills/`).
 
 ### 1. Copy the framework into your project
 
@@ -135,7 +148,7 @@ Then ask your agent: *"What are your non-negotiable rules, and what must you do 
 ┌────────────────────────────────────────────────────────────────────┐
 │  PLATFORM CONTROLS  (sandbox · egress allowlist · agent identities)│
 │  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  ENFORCEMENT  (tool permissions · hooks · pre-commit · CI ·  │  │
+│  │  ENFORCEMENT  (plugin hooks · permissions · pre-commit · CI ·│  │
 │  │                branch protection · CODEOWNERS)               │  │
 │  │  ┌────────────────────────────────────────────────────────┐  │  │
 │  │  │                  AI CODING AGENT                       │  │  │
@@ -143,9 +156,9 @@ Then ask your agent: *"What are your non-negotiable rules, and what must you do 
 │  │  │  AGENTS.md ── Non-negotiable rules (always)            │  │  │
 │  │  │     │                                                  │  │  │
 │  │  │     ├─ Always:    SECURITY · CONSTRAINTS · PROJECT     │  │  │
-│  │  │     └─ On demand: WORKFLOW · CONVENTIONS · SESSIONS ·  │  │  │
-│  │  │                   PROTOCOLS · ARCHITECTURE · TESTING · │  │  │
-│  │  │                   GLOSSARY                             │  │  │
+│  │  │     ├─ On demand: WORKFLOW · CONVENTIONS · SESSIONS ·  │  │  │
+│  │  │     │             ARCHITECTURE · TESTING · GLOSSARY    │  │  │
+│  │  │     └─ Skills:    /plan · /review · /verify · ...      │  │  │
 │  │  │                                                        │  │  │
 │  │  │  Read ─ Write ─ Run ─ Commit ─ (Ask) Push / PR         │  │  │
 │  │  └────────────────────────────────────────────────────────┘  │  │
@@ -166,11 +179,14 @@ your-project/
 │   ├── WORKFLOW.md                  # Git, commits, PRs (on demand)
 │   ├── CONVENTIONS.md               # Code style, AI-code rules (on demand)
 │   ├── SESSIONS.md                  # Session lifecycle, handoffs (on demand)
-│   └── PROTOCOLS.md                 # Slash commands (on demand)
+│   └── PROTOCOLS.md                 # Pointer: slash commands now live in skills/
 ├── ARCHITECTURE.md                  # Your system design
 ├── TESTING.md                       # Your test strategy + agent test rules
 ├── GLOSSARY.md                      # Your domain terms
 ├── AGENTIC-SECURITY-CHECKLIST.md    # For humans: platform controls
+├── .claude-plugin/                  # Claude Code plugin + marketplace manifests
+├── hooks/                           # Enforcement hooks (hooks.json + scripts/)
+├── skills/                          # One SKILL.md per slash command
 ├── examples/                        # Adapters and enforcement (copy what you need)
 ├── scripts/agent-doctor.sh          # Setup checker for adopting projects
 ├── scripts/self-test.sh             # Verifies this framework repository
@@ -219,9 +235,11 @@ no placeholder logic, keep diffs reviewable.
 
 Start checklist, baseline recording, context hygiene, handoff notes — treated as untrusted when received.
 
-### PROTOCOLS.md — Slash Commands *(on demand)*
+### Skills — Slash Commands *(loaded by the tool)*
 
-Conventions for `/plan`, `/review`, `/verify`, `/handoff` and more.
+`/plan`, `/review`, `/verify`, `/handoff` and more live in `skills/*/SKILL.md`. Each has a
+`description`, so the agent can also pick the right one on its own. `PROTOCOLS.md` now just
+points there.
 
 ---
 
@@ -277,8 +295,8 @@ Conventions for `/plan`, `/review`, `/verify`, `/handoff` and more.
 | `/handoff` | Write a handoff note for another session or agent |
 | `/status`, `/recap` | Session status and summary |
 
-These are conventions the agent follows, not executable scripts. Many tools also let you turn
-them into native commands or skills.
+Each is a skill in `skills/<name>/SKILL.md`. With the plugin they install automatically; without
+it, copy `skills/` to `.claude/skills/`. Other tools can read the same files as plain instructions.
 
 **More commands:** [ai-slash-commands](https://github.com/CarlosFelipeF/ai-slash-commands) — a
 companion library of reusable slash commands.
@@ -297,7 +315,9 @@ Copy [`examples/adapters/claude/CLAUDE.md`](examples/adapters/claude/CLAUDE.md) 
 It contains `@AGENTS.md`, which imports the shared rules. Recent versions also read `AGENTS.md`
 when no `CLAUDE.md` exists, but the import works on every version and provider.
 
-For enforcement, copy [`examples/enforcement/claude/`](examples/enforcement/claude/) to `.claude/`.
+For enforcement, install the plugin (see [Quick Start](#quick-start)) and add the `permissions`
+block from [`examples/enforcement/claude/settings.json`](examples/enforcement/claude/settings.json).
+Without the plugin, follow [`examples/README.md`](examples/README.md).
 
 ### GitHub Copilot
 
@@ -363,7 +383,7 @@ sensitive_paths:
 |-------|---------|:--:|
 | Instructions | `AGENTS.md`, `.agent/` | ❌ |
 | Tool permissions | Claude Code `deny` rules | ✅ |
-| Command hook | `guard-bash.py` (shell-aware, tested) | ⚠️ Strong, with known gaps |
+| Plugin hooks | `guard-bash.py`, secret commit/write, protected folders (tested) | ⚠️ Strong, with known gaps |
 | Pre-commit | gitleaks | ⚠️ Unless bypassed |
 | CI + branch protection + CODEOWNERS | `agent-guardrails.yml` | ✅ |
 | Sandbox + egress allowlist | Container, network policy | ✅ |
@@ -439,18 +459,18 @@ No. It reduces risk and makes agent work easier to review. Humans stay accountab
 
 ## Roadmap
 
-### v2.1.0 (Current)
-- Correct OWASP Agentic Top 10 (2026) mapping
-- Progressive context loading; Definition of Done
-- Prompt-injection defences and the Rule of Two
-- Enforcement kit, tool adapters and `agent-doctor`
+### v3.0.0 (Current)
+- Claude Code plugin: enforcement hooks and slash-command skills
+- Shell-aware command guard with 150+ adversarial tests
+- Correct OWASP Agentic Top 10 (2026) mapping; Rule of Two; Definition of Done
+- Progressive context loading
+- Enforcement kit, tool adapters, `agent-doctor` and `self-test`
 
-### v2.2.0 (Planned)
+### v3.1.0 (Planned)
 - Multi-agent orchestration protocols (sub-agent permissions, handoff integrity)
 - Adapters for more tools; MCP server review checklist
-- Agent skills packaging for slash commands
 
-### v3.0.0 (Future)
+### v4.0.0 (Future)
 - Machine-readable policy (YAML/JSON) generated into each tool's native permission format
 - Policy tests: injection scenarios to check an agent setup against
 - Metrics and observability hooks

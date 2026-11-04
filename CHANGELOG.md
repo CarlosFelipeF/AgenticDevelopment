@@ -3,9 +3,22 @@
 All notable changes to this framework are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
-## [2.1.0] — 2026-11-03
+## [3.0.0] — 2026-11-04
+
+Combines the plugin work from PR #3 with the hardening and enforcement kit from this branch.
+Major version because slash commands moved from `.agent/PROTOCOLS.md` to `skills/`.
 
 ### Added
+- **Claude Code plugin** (`.claude-plugin/`, from PR #3): one install adds the enforcement hooks
+  (`hooks/hooks.json`) and the slash-command skills (`skills/*/SKILL.md`).
+- **Plugin hooks** (from PR #3): `block-secret-commit.sh` (scans the staged diff),
+  `block-secret-write.sh`, `protect-files.sh` (credential and system folders; asks before
+  protected files). `guard-bash.py` is now the plugin's shell hook.
+- **`/verify` and `/handoff` skills**; `/commit` and `/security-review` skills updated with explicit
+  staging, secret scanning, slopsquatting and agent-specific checks.
+- **`tests/test_plugin_hooks.py`**: tests for the secret-commit, secret-write and protected-file hooks.
+- `self-test.sh` checks plugin wiring (every hook script exists, every skill has a description)
+  and that the version matches in `plugin.json`.
 - **Enforcement kit** (`examples/enforcement/`): Claude Code permission deny/ask lists, a
   `PreToolUse` command guard, pre-commit config with gitleaks, a GitHub Actions guardrail
   workflow (diff-scoped secret scan with checksum-verified gitleaks, dependency review,
@@ -36,6 +49,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - TEMPLATE banners on project-context files so agents don't treat sample content as fact.
 
 ### Changed
+- Slash commands moved from `.agent/PROTOCOLS.md` to `skills/` (from PR #3); `PROTOCOLS.md` now points there.
+- `block-destructive-git.sh` (from PR #3) removed: `guard-bash.py` covers all of it. Against the
+  same 107 attack cases, the PR #3 shell hooks blocked 16; `guard-bash.py` blocks all 107.
+- Plugin secret patterns extended (GitHub `gho_`/`ghs_`/`ghu_`/`ghr_`, GitLab, Stripe, Google, Slack).
 - **Progressive context loading:** only `SECURITY`, `CONSTRAINTS` and `PROJECT` load every
   session; other files load when the task needs them.
 - OWASP mapping corrected to the official **OWASP Top 10 for Agentic Applications (2026)** names
@@ -51,7 +68,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - More high-signal secret patterns (GitHub fine-grained, GitLab, Stripe, Google, JWT) and a rule
   against putting secrets in prompts.
 
-### Fixed (found in a second, adversarial review before release)
+### Fixed
+- `block-secret-commit.sh` (from PR #3) failed open on macOS: it used `mapfile` and an empty
+  array under `set -u` (bash 4+ only; macOS ships bash 3.2), and `sed` `\n` replacements that BSD
+  sed doesn't support. Now uses POSIX-portable `while read`, `awk` and `[[:space:]]`.
+- `agent-doctor` now fails when the shell hooks are installed but `jq` is missing (fail-open risk).
+
+### Fixed during the 2.1.0 adversarial review (unreleased)
 - The first command guard (`guard-bash.sh`, regex-based) let 17 of 18 tested attacks through —
   including `bash -c "$(curl …)"`, `rm -r -f /` and `echo x > AGENTS.md` — blocked legitimate
   commands such as `git push origin main-fix`, and failed open on malformed input. Replaced by

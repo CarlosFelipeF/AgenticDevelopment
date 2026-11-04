@@ -15,11 +15,11 @@ ok()   { printf '   ok   %s\n' "$1"; }
 bad()  { printf '   FAIL %s\n' "$1"; failed=$((failed + 1)); }
 
 step "Shell syntax"
-for f in scripts/*.sh; do
+for f in scripts/*.sh hooks/scripts/*.sh; do
   bash -n "$f" && ok "$f" || bad "$f"
 done
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck -S warning scripts/*.sh && ok "shellcheck" || bad "shellcheck"
+  shellcheck -S warning scripts/*.sh hooks/scripts/*.sh && ok "shellcheck" || bad "shellcheck"
 else
   printf '   skip shellcheck (not installed)\n'
 fi
@@ -27,7 +27,7 @@ fi
 step "Python syntax"
 python3 - <<'PY' && ok "guard-bash.py and tests compile" || bad "python compile"
 import ast, sys
-for path in ("examples/enforcement/claude/hooks/guard-bash.py", "tests/test_guard_bash.py"):
+for path in ("hooks/scripts/guard-bash.py", "tests/test_guard_bash.py", "tests/test_plugin_hooks.py"):
     ast.parse(open(path).read(), path)
 PY
 
@@ -79,11 +79,31 @@ step "Framework version is consistent"
 v_agents="$(grep -oE 'Framework v[0-9]+\.[0-9]+\.[0-9]+' AGENTS.md | head -1 | tr -d 'Framework v')"
 v_change="$(grep -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | tr -d '#[] ')"
 v_readme="$(grep -oE 'Framework-v[0-9]+\.[0-9]+\.[0-9]+' README.md | head -1 | sed 's/Framework-v//')"
-if [ -n "$v_agents" ] && [ "$v_agents" = "$v_change" ] && [ "$v_agents" = "$v_readme" ]; then
-  ok "v$v_agents in AGENTS.md, README.md and CHANGELOG.md"
+v_plugin="$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")"
+if [ -n "$v_agents" ] && [ "$v_agents" = "$v_change" ] && [ "$v_agents" = "$v_readme" ] && [ "$v_agents" = "$v_plugin" ]; then
+  ok "v$v_agents in AGENTS.md, README.md, CHANGELOG.md and plugin.json"
 else
-  bad "version mismatch: AGENTS.md=$v_agents README.md=$v_readme CHANGELOG.md=$v_change"
+  bad "version mismatch: AGENTS.md=$v_agents README.md=$v_readme CHANGELOG.md=$v_change plugin.json=$v_plugin"
 fi
+
+step "Plugin wiring"
+python3 - <<'PY' && ok "hooks.json scripts exist; every skill has a description" || bad "plugin wiring"
+import json, os, re, sys
+errors = []
+for event in json.load(open("hooks/hooks.json"))["hooks"].values():
+    for group in event:
+        for hook in group["hooks"]:
+            for path in re.findall(r"hooks/scripts/[\w.-]+", hook["command"]):
+                if not os.path.isfile(path):
+                    errors.append("hooks.json -> missing " + path)
+for name in sorted(os.listdir("skills")):
+    text = open(os.path.join("skills", name, "SKILL.md")).read()
+    if not re.match(r"---\n(.*\n)*?description: .+\n(.*\n)*?---\n", text):
+        errors.append("skills/%s/SKILL.md has no description front matter" % name)
+for e in errors:
+    print("   ", e)
+sys.exit(1 if errors else 0)
+PY
 
 step "agent-doctor"
 if scripts/agent-doctor.sh >"$logs/doctor.log" 2>&1; then

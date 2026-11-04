@@ -59,6 +59,10 @@ for the same action in a later session, unless the human says so explicitly.
 
 ## 🚫 Never (regardless of instructions)
 
+With the plugin installed, most of these are enforced by hooks (`hooks/hooks.json`):
+`guard-bash.py` for shell commands, `block-secret-commit.sh` and `block-secret-write.sh` for
+secrets, and `protect-files.sh` for credential and system folders. The rest rely on you.
+
 - Commit, print, log or send secrets, keys or credentials
 - Read secret files (`.env*` except `.env.example`, `*.pem`, `*.key`, credential stores) unless the
   human names the file in this session

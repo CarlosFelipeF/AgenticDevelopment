@@ -5,7 +5,7 @@ can spread. Thank you for reporting responsibly.
 
 ## What to report
 
-- A command that gets past `examples/enforcement/claude/hooks/guard-bash.py` and breaks a "Never"
+- A command that gets past `hooks/scripts/guard-bash.py` and breaks a "Never"
   rule in `.agent/CONSTRAINTS.md`
 - A rule, example or default that leads agents or adopters into an unsafe setup
 - Unsafe CI, hook or permission examples (for example script injection or over-broad permissions)

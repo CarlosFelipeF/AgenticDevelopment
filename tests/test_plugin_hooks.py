@@ -25,8 +25,12 @@ def run_guard(command, cwd):
     return res.returncode
 
 
+# CI sets HOOK_BASH=/bin/bash on macOS to test with the bash 3.2 that ships there.
+HOOK_BASH = os.environ.get("HOOK_BASH", "bash")
+
+
 def run(script, payload, cwd):
-    res = subprocess.run(["bash", os.path.join(SCRIPTS, script)], input=json.dumps(payload),
+    res = subprocess.run([HOOK_BASH, os.path.join(SCRIPTS, script)], input=json.dumps(payload),
                          capture_output=True, text=True, cwd=cwd, timeout=30,
                          env={**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT})
     decision = ""
@@ -134,6 +138,47 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
         payload = {"tool_name": "Read", "cwd": self.cwd,
                    "tool_input": {"file_path": os.path.expanduser("~/.ssh/id_ed25519")}}
         self.assertEqual(run("protect-files.sh", payload, self.cwd), (0, "deny"))
+
+    def file_decision(self, tool, rel_path):
+        path = rel_path if os.path.isabs(rel_path) else os.path.join(self.cwd, rel_path)
+        payload = {"tool_name": tool, "cwd": self.cwd, "tool_input": {"file_path": path}}
+        return run("protect-files.sh", payload, self.cwd)
+
+    def test_blocks_edits_to_guardrails(self):
+        home = os.path.expanduser("~")
+        for path in (".claude/settings.json", ".claude/settings.local.json", ".claude/hooks/guard-bash.py",
+                     ".git/hooks/pre-commit",
+                     os.path.join(home, ".claude/plugins/cache/x/hooks/scripts/guard-bash.py")):
+            for tool in ("Write", "Edit"):
+                with self.subTest(path=path, tool=tool):
+                    self.assertEqual(self.file_decision(tool, path), (0, "deny"))
+
+    def test_asks_before_editing_governance_rules(self):
+        for path in ("AGENTS.md", "packages/api/AGENTS.md", "CLAUDE.md", ".agent/CONSTRAINTS.md",
+                     ".cursor/rules/agents.mdc", ".github/CODEOWNERS", ".pre-commit-config.yaml"):
+            with self.subTest(path=path):
+                self.assertEqual(self.file_decision("Edit", path), (0, "ask"))
+
+    def test_governance_files_stay_readable_and_memory_stays_writable(self):
+        for path in ("AGENTS.md", ".agent/SECURITY.md", ".claude/settings.json"):
+            with self.subTest(read=path):
+                self.assertEqual(self.file_decision("Read", path), (0, ""))
+        memory = os.path.join(os.path.expanduser("~"), ".claude/projects/x/memory/notes.md")
+        self.assertEqual(self.file_decision("Write", memory), (0, ""))
+        self.assertEqual(self.file_decision("Write", "src/app.py"), (0, ""))
+
+    def test_home_paths_outside_project(self):
+        def decide(path, cwd):
+            payload = {"tool_name": "Write", "cwd": cwd, "tool_input": {"file_path": path}}
+            return run("protect-files.sh", payload, self.cwd)[1]
+        for home in ("/home/tester", "/Users/tester"):
+            proj = home + "/proj"
+            with self.subTest(home=home):
+                self.assertEqual(decide(home + "/.claude/projects/p/memory/notes.md", proj), "")
+                self.assertEqual(decide(home + "/.claude/plugins/c/hooks/scripts/guard-bash.py", proj), "deny")
+                self.assertEqual(decide(home + "/.claude/settings.json", proj), "deny")
+                self.assertEqual(decide(home + "/other/file.txt", proj), "deny")
+                self.assertEqual(decide(proj + "/src/app.py", proj), "")
 
     def test_allows_reading_project_files(self):
         payload = {"tool_name": "Read", "cwd": self.cwd,

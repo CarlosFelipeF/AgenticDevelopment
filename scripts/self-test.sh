@@ -51,6 +51,16 @@ else
   printf '   skip YAML (PyYAML not installed)\n'
 fi
 
+step "GitHub Actions pinned to commit SHAs"
+unpinned="$(grep -rhnE '^[[:space:]]*-?[[:space:]]*uses:' .github/workflows examples/enforcement/github 2>/dev/null \
+  | grep -vE 'uses:[[:space:]]*([^@[:space:]]+@[0-9a-f]{40}([[:space:]]|$)|\./)' || true)"  # ./local actions can't be pinned
+if [ -z "$unpinned" ]; then
+  ok "every uses: is pinned to a full commit SHA"
+else
+  printf '   unpinned: %s\n' "$unpinned"
+  bad "unpinned GitHub Actions (tags can be moved; pin to a SHA with a # vX.Y.Z comment)"
+fi
+
 step "Internal links and file references"
 python3 - <<'PY' && ok "all internal references resolve" || bad "broken internal references"
 import os, re, subprocess, sys

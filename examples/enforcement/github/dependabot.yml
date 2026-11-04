@@ -1,0 +1,12 @@
+# Copy to .github/dependabot.yml. Add more package-ecosystem entries for your own dependencies.
+# Keeps the SHA-pinned GitHub Actions in .github/workflows/ up to date.
+# Dependabot updates both the commit SHA and the version comment beside it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]

@@ -199,6 +199,29 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(self.file_decision("Edit", path), (0, "ask"))
 
+    def test_git_config_and_plugin_manifests(self):
+        # PR #5 security review: .git/config can disable hooks or run commands later.
+        for path in (".git/config", ".git/info/exclude", ".git/./config"):
+            with self.subTest(path=path):
+                self.assertEqual(self.file_decision("Write", path), (0, "deny"))
+        self.assertEqual(self.file_decision("Edit", ".claude-plugin/plugin.json"), (0, "ask"))
+
+    def test_fails_closed_without_python3(self):
+        # PR #5 security review: without python3 the old fallback matched the raw path.
+        bindir = os.path.join(self.cwd, "bin-no-python")
+        os.makedirs(bindir)
+        for tool in ("jq", "tr", "basename", "cat"):
+            os.symlink(shutil.which(tool), os.path.join(bindir, tool))
+        bash = shutil.which(HOOK_BASH) or HOOK_BASH
+        for path in (".claude/./settings.json", "src/app.py"):
+            with self.subTest(path=path):
+                payload = {"tool_name": "Write", "cwd": self.cwd,
+                           "tool_input": {"file_path": os.path.join(self.cwd, path)}}
+                res = subprocess.run([bash, os.path.join(SCRIPTS, "protect-files.sh")],
+                                     input=json.dumps(payload), capture_output=True, text=True,
+                                     env={"PATH": bindir, "HOME": self.cwd}, timeout=30)
+                self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
+
     def test_symlinked_path_to_a_guardrail(self):
         os.makedirs(os.path.join(self.cwd, ".claude"))
         os.symlink(os.path.join(self.cwd, ".claude"), os.path.join(self.cwd, "innocent"))

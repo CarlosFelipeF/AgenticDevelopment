@@ -43,7 +43,8 @@ deny() {
 # and "//", resolve symlinks, then lowercase it (macOS disks are case-insensitive, so
 # ".claude/Settings.json" is the same file). Lowercasing everywhere can only add an
 # approval prompt on Linux, never remove a block. Needs python3, like guard-bash.py;
-# without it the raw path is used.
+# without it every file action is denied (fail closed), because raw-string matching can
+# be dodged with "./", "//" or a symlink.
 # canon PATH BASE [norm]: absolute path with symlinks resolved; with "norm", only "." and
 # "//" are collapsed and symlinks are kept (macOS links /home to /System/Volumes/Data/home,
 # so prefix checks like "is this under /home?" must use the unresolved form).
@@ -52,13 +53,17 @@ canon() {
 p = os.path.expanduser(sys.argv[1])
 if not os.path.isabs(p):
     p = os.path.join(sys.argv[2] or os.getcwd(), p)
-print(os.path.normpath(p) if sys.argv[3] == "norm" else os.path.realpath(p))' "$1" "${2:-}" "${3:-}" 2>/dev/null \
-    || printf '%s' "$1"
+print(os.path.normpath(p) if sys.argv[3] == "norm" else os.path.realpath(p))' "$1" "${2:-}" "${3:-}" 2>/dev/null
 }
+command -v python3 >/dev/null 2>&1 \
+  || deny "Blocked: protect-files.sh needs python3 to check file paths safely. Install python3, then retry."
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
-P="$(lower "$(canon "$FILE_PATH" "$CWD")")"          # resolved: for guardrail patterns
-N="$(lower "$(canon "$FILE_PATH" "$CWD" norm)")"     # unresolved: for location checks
+P_RAW="$(canon "$FILE_PATH" "$CWD")" && N_RAW="$(canon "$FILE_PATH" "$CWD" norm)" \
+  && [ -n "$P_RAW" ] && [ -n "$N_RAW" ] \
+  || deny "Blocked: protect-files.sh could not resolve this path, so it cannot check it safely."
+P="$(lower "$P_RAW")"   # resolved: for guardrail patterns
+N="$(lower "$N_RAW")"   # unresolved: for location checks
 C=""; CN=""
 if [ -n "$CWD" ]; then C="$(lower "$(canon "$CWD" "")")"; CN="$(lower "$(canon "$CWD" "" norm)")"; fi
 H=""; HN=""
@@ -108,6 +113,10 @@ case "$P" in
     deny "Blocked by .agent/CONSTRAINTS.md: agents may not change the hooks or plugins that enforce their rules. Ask the human to edit this file." ;;
   */.git/hooks/*)
     deny "Blocked by .agent/CONSTRAINTS.md: agents may not change git hooks. Ask the human to edit this file." ;;
+  */.git/config|*/.git/info/*)
+    # core.hooksPath turns off pre-commit checks; core.fsmonitor, aliases or sshCommand run
+    # commands the next time a human uses git, outside any sandbox.
+    deny "Blocked by .agent/CONSTRAINTS.md: agents may not change git configuration. Ask the human to edit this file." ;;
 esac
 
 # Governance rules and instruction-bearing files (requires approval) — Non-Negotiable
@@ -118,7 +127,7 @@ case "$BASENAME" in
     ask "Requires approval per AGENTS.md rule 8: governance and guardrail files change only when the human asked." ;;
 esac
 case "$P" in
-  */.agent/*|*/.cursor/rules/*|*/.github/instructions/*)
+  */.agent/*|*/.cursor/rules/*|*/.github/instructions/*|*/.claude-plugin/*)
     ask "Requires approval per AGENTS.md rule 8: governance files change only when the human asked." ;;
   */.claude/agents/*|*/.claude/skills/*|*/.claude/commands/*|*/.claude/rules/*|*/.claude/output-styles/*)
     ask "Requires approval per AGENTS.md rule 8: agent, skill, command and rule files carry instructions." ;;

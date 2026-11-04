@@ -11,6 +11,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   plugins and `.git/hooks/`, and asks before edits to `AGENTS.md`, `CLAUDE.md`, `.agent/`,
   `.cursor/rules/`, `CODEOWNERS` and pre-commit config. Before this, only the optional example
   deny rules covered these, so plugin-only users had no protection for the Edit and Write tools.
+  It also asks before writes to `.claude/agents|skills|commands|rules|output-styles`, which
+  carry instructions (and can declare hooks), so planting one is a persistent prompt injection.
+- **`protect-files.sh` matches canonical paths.** It resolves each path against the working
+  directory, collapses `.` and `//`, resolves symlinks and compares in lowercase (macOS disks
+  are case-insensitive). Before this, `.claude/./settings.json`, `.claude//settings.json`,
+  `.claude/Settings.json` or a symlinked folder got past every check (found by GitHub
+  code scanning and Codex review on PR #5).
 - **OS-level sandbox in the example settings**, with `failIfUnavailable: true` (no silent
   unsandboxed fallback), `allowUnsandboxedCommands: false`, a network allowlist and credential
   folders denied for reads.
@@ -20,9 +27,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Fixed
 - `protect-files.sh` blocked every write under `/home/...` outside the project — including
-  Claude Code's own memory files in `~/.claude/` — for Linux users. Claude Code's `.claude/`
-  folder is now exempt (its settings, hooks and plugins stay blocked), and the same
-  outside-the-project rule now covers macOS `/Users/...` paths, which it used to skip.
+  Claude Code's own memory files — for Linux users. Only your own memory folder
+  (`$HOME/.claude/projects/*/memory/`) is now exempt; other `.claude/` folders, in your home or
+  anyone else's, stay blocked. The same rule now also covers macOS `/Users/...` paths.
 
 ### Changed
 - CI runs `self-test` on Linux and macOS. On macOS every bash hook runs under `/bin/bash`

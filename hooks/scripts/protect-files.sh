@@ -39,11 +39,30 @@ deny() {
   exit 0
 }
 
+# Match on a canonical path, never the raw string: resolve it against CWD, collapse "."
+# and "//", resolve symlinks, then lowercase it (macOS disks are case-insensitive, so
+# ".claude/Settings.json" is the same file). Lowercasing everywhere can only add an
+# approval prompt on Linux, never remove a block. Needs python3, like guard-bash.py;
+# without it the raw path is used.
+canon() {
+  python3 -c 'import os, sys
+p = os.path.expanduser(sys.argv[1])
+if not os.path.isabs(p):
+    p = os.path.join(sys.argv[2] or os.getcwd(), p)
+print(os.path.realpath(p))' "$1" "${2:-}" 2>/dev/null || printf '%s' "$1"
+}
+lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+P="$(lower "$(canon "$FILE_PATH" "$CWD")")"
+C=""; [ -n "$CWD" ] && C="$(lower "$(canon "$CWD" "")")"
+H=""; [ -n "${HOME:-}" ] && H="$(lower "$(canon "$HOME" "")")"
+BASENAME="$(basename "$P")"
+
 # Credential directories: hard deny for every matched tool, reads included.
-case "$FILE_PATH" in
-  ~/.ssh/*|*/.ssh/*)
+case "$P" in
+  */.ssh|*/.ssh/*)
     deny "Blocked by .agent/CONSTRAINTS.md: SSH key directories are forbidden." ;;
-  ~/.aws/*|*/.aws/*)
+  */.aws|*/.aws/*)
     deny "Blocked by .agent/CONSTRAINTS.md: AWS credential directories are forbidden." ;;
 esac
 
@@ -54,42 +73,44 @@ esac
 case "$FILE_PATH" in
   ../*|*/../*)
     deny "Blocked by .agent/CONSTRAINTS.md: path traverses outside the repository root." ;;
-  /etc/*|/etc)
+esac
+case "$P" in
+  /etc|/etc/*|/private/etc|/private/etc/*)
     deny "Blocked by .agent/CONSTRAINTS.md: /etc/ is a forbidden directory." ;;
 esac
 
-# Other users' and your own home files outside the project (Linux /home, macOS /Users).
-# Claude Code's own .claude/ folder is exempt here — its memory feature writes there — and
-# the guardrail block below still stops writes to its settings, hooks and plugins.
-if [[ ( "$FILE_PATH" = /home/* || "$FILE_PATH" = /Users/* ) && -n "$CWD" \
-      && "$FILE_PATH" != "$CWD"/* && "$FILE_PATH" != */.claude/* ]]; then
-  deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory."
+# Home folders outside the project (Linux /home, macOS /Users), including other projects'
+# .claude/ folders. The only exemption is your own Claude Code memory folder.
+if [[ ( "$P" = /home/* || "$P" = /users/* ) && -n "$C" && "$P" != "$C"/* ]]; then
+  if [[ -z "$H" || "$P" != "$H"/.claude/projects/*/memory/* ]]; then
+    deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory."
+  fi
 fi
 
-BASENAME="$(basename "$FILE_PATH")"
-
 # Guardrails (hard block) — ASI10 Rogue Agents: an agent must not be able to switch off
-# the controls that watch it. Covers project settings and hooks, installed plugins (which
-# include these hooks) and git hooks. Other ~/.claude/ paths stay writable on purpose:
-# Claude Code's memory feature writes there.
-case "$FILE_PATH" in
-  .claude/settings.json|*/.claude/settings.json|.claude/settings.local.json|*/.claude/settings.local.json)
+# the controls that watch it: Claude Code settings and hooks, installed plugins (which
+# include these hooks) and git hooks.
+case "$P" in
+  */.claude/settings.json|*/.claude/settings.local.json)
     deny "Blocked by .agent/CONSTRAINTS.md: agents may not change their own permission or hook settings. Ask the human to edit this file." ;;
-  .claude/hooks/*|*/.claude/hooks/*|*/.claude/plugins/*)
+  */.claude/hooks/*|*/.claude/plugins/*)
     deny "Blocked by .agent/CONSTRAINTS.md: agents may not change the hooks or plugins that enforce their rules. Ask the human to edit this file." ;;
-  .git/hooks/*|*/.git/hooks/*)
+  */.git/hooks/*)
     deny "Blocked by .agent/CONSTRAINTS.md: agents may not change git hooks. Ask the human to edit this file." ;;
 esac
 
-# Governance rules (requires approval) — Non-Negotiable Rule 8: agents edit these only
-# when the human asked, so the human confirms each edit.
+# Governance rules and instruction-bearing files (requires approval) — Non-Negotiable
+# Rule 8. Agent, skill, command and rule files carry instructions (and can declare
+# hooks), so planting one is a persistent prompt injection.
 case "$BASENAME" in
-  AGENTS.md|CLAUDE.md|CLAUDE.local.md|GEMINI.md|.cursorrules|copilot-instructions.md|CODEOWNERS|.pre-commit-config.yaml|.pre-commit-config.yml)
+  agents.md|claude.md|claude.local.md|gemini.md|.cursorrules|copilot-instructions.md|codeowners|.pre-commit-config.yaml|.pre-commit-config.yml)
     ask "Requires approval per AGENTS.md rule 8: governance and guardrail files change only when the human asked." ;;
 esac
-case "$FILE_PATH" in
-  .agent/*|*/.agent/*|.cursor/rules/*|*/.cursor/rules/*|.github/instructions/*|*/.github/instructions/*)
+case "$P" in
+  */.agent/*|*/.cursor/rules/*|*/.github/instructions/*)
     ask "Requires approval per AGENTS.md rule 8: governance files change only when the human asked." ;;
+  */.claude/agents/*|*/.claude/skills/*|*/.claude/commands/*|*/.claude/rules/*|*/.claude/output-styles/*)
+    ask "Requires approval per AGENTS.md rule 8: agent, skill, command and rule files carry instructions." ;;
 esac
 
 # Protected files (requires approval) — .agent/CONSTRAINTS.md "File Modification Rules"
@@ -98,11 +119,11 @@ case "$BASENAME" in
     ask "Requires approval per .agent/CONSTRAINTS.md: environment files are protected." ;;
   *.pem|*.key)
     ask "Requires approval per .agent/CONSTRAINTS.md: certificate/key files are protected." ;;
-  docker-compose*.yml|Dockerfile*)
+  docker-compose*.yml|dockerfile*)
     ask "Requires approval per .agent/CONSTRAINTS.md: container orchestration files are protected." ;;
 esac
 
-case "$FILE_PATH" in
+case "$P" in
   */config/prod*)
     ask "Requires approval per .agent/CONSTRAINTS.md: production configuration is protected." ;;
   */.github/workflows/*)

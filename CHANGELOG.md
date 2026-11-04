@@ -33,9 +33,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Fixed
 - `protect-files.sh` blocked every write under `/home/...` outside the project — including
-  Claude Code's own memory files — for Linux users. Only your own memory folder
-  (`$HOME/.claude/projects/*/memory/`) is now exempt; other `.claude/` folders, in your home or
-  anyone else's, stay blocked. The same rule now also covers macOS `/Users/...` paths.
+  Claude Code's own memory files — for Linux users. Only the current project's memory
+  folder (`$HOME/.claude/projects/<this repo>/memory/`) is now exempt — memory is loaded into
+  every later session of its project, so writing another project's memory would be a
+  cross-project prompt injection. Other `.claude/` folders, in your home or anyone else's, stay
+  blocked. The same rule now also covers macOS `/Users/...` paths.
 
 ### Changed
 - CI runs `self-test` on Linux and macOS. On macOS every bash hook runs under `/bin/bash`

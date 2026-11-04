@@ -103,11 +103,42 @@ in_homes() {
   [ -n "$HN" ] && case "$1" in "$HN"/*) return 0 ;; esac
   return 1
 }
+# Claude Code's auto memory for THIS project: ~/.claude/projects/<project>/memory/, where
+# <project> comes from the git repository root (shared by subfolders and worktrees), or the
+# working directory outside a repo, or CLAUDE_CODE_PROJECT_DIR_NAME. Memory is loaded into
+# every later session of its project, so writing another project's memory is a persistent
+# prompt injection: only this project's folder is exempt. The name encoding isn't
+# documented ("/" becomes "-"), so both likely encodings are accepted.
+own_memory() {
+  [ -n "$H" ] || return 1
+  local slug
+  while IFS= read -r slug; do
+    [ -n "$slug" ] || continue
+    slug="$(lower "$slug")"
+    [[ "$P" == "$H/.claude/projects/$slug/memory/"* ]] && return 0
+  done < <(python3 -c 'import os, re, subprocess, sys
+cwd = sys.argv[1]
+root = cwd
+try:
+    out = subprocess.run(["git", "-C", cwd, "rev-parse", "--git-common-dir"],
+                         capture_output=True, text=True, timeout=3)
+    if out.returncode == 0 and out.stdout.strip():
+        d = os.path.normpath(os.path.join(cwd, out.stdout.strip()))
+        root = os.path.dirname(d) if os.path.basename(d) == ".git" else d
+except (OSError, subprocess.SubprocessError):
+    pass
+names = set()
+if os.environ.get("CLAUDE_CODE_PROJECT_DIR_NAME"):
+    names.add(os.environ["CLAUDE_CODE_PROJECT_DIR_NAME"])
+for r in {root, os.path.realpath(root)}:
+    names.add(re.sub(r"[^A-Za-z0-9]", "-", r))
+    names.add(r.replace("/", "-"))
+print("\n".join(n for n in names if "/" not in n and n not in (".", "..")))' "${CWD:-$PWD}" 2>/dev/null)
+  return 1
+}
 if { in_homes "$N" || in_homes "$P"; } && [ -n "$C" ] && [[ "$P" != "$C"/* || "$N" != "$CN"/* ]]; then
-  # The memory exemption needs the RESOLVED path inside your own memory folder.
-  if [[ -z "$H" || "$P" != "$H"/.claude/projects/*/memory/* ]]; then
-    deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory, or a link inside it points outside."
-  fi
+  # The memory exemption needs the RESOLVED path inside this project's own memory folder.
+  own_memory || deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory, or a link inside it points outside."
 fi
 
 # Guardrails (hard block) — ASI10 Rogue Agents: an agent must not be able to switch off

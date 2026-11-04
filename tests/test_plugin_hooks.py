@@ -165,7 +165,8 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
         for path in ("AGENTS.md", ".agent/SECURITY.md", ".claude/settings.json"):
             with self.subTest(read=path):
                 self.assertEqual(self.file_decision("Read", path), (0, ""))
-        memory = os.path.join(os.path.expanduser("~"), ".claude/projects/x/memory/notes.md")
+        memory = os.path.join(os.path.expanduser("~"), ".claude/projects", self.cwd.replace("/", "-"),
+                              "memory/notes.md")  # this project's own memory folder
         self.assertEqual(self.file_decision("Write", memory), (0, ""))
         self.assertEqual(self.file_decision("Write", "src/app.py"), (0, ""))
 
@@ -176,7 +177,8 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
         for home in ("/home/tester", "/Users/tester"):
             proj = home + "/proj"
             with self.subTest(home=home):
-                self.assertEqual(decide(home + "/.claude/projects/p/memory/notes.md", proj, home), "")
+                own_mem = home + "/.claude/projects/" + proj.replace("/", "-") + "/memory/notes.md"
+                self.assertEqual(decide(own_mem, proj, home), "")
                 self.assertEqual(decide(home + "/.claude/plugins/c/hooks/scripts/guard-bash.py", proj, home), "deny")
                 self.assertEqual(decide(home + "/.claude/settings.json", proj, home), "deny")
                 self.assertEqual(decide(home + "/other/file.txt", proj, home), "deny")
@@ -226,19 +228,41 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
         # PR #5 security review: docs/notes -> ~/.bashrc was treated as inside the project.
         home = os.path.join(self.cwd, "fakehome")
         proj = os.path.join(self.cwd, "proj")
-        os.makedirs(os.path.join(home, ".claude", "projects", "p", "memory"))
+        own_slug = proj.replace("/", "-")
+        os.makedirs(os.path.join(home, ".claude", "projects", own_slug, "memory"))
         os.makedirs(os.path.join(proj, "docs"))
         open(os.path.join(home, ".bashrc"), "w").close()
         os.symlink(os.path.join(home, ".bashrc"), os.path.join(proj, "docs", "notes"))
-        os.symlink(os.path.join(home, ".claude", "projects", "p", "memory"), os.path.join(proj, "mem"))
 
         def decide(path):
             payload = {"tool_name": "Write", "cwd": proj, "tool_input": {"file_path": path}}
             return run("protect-files.sh", payload, self.cwd, home=home)[1]
         self.assertEqual(decide(os.path.join(proj, "docs", "notes")), "deny")
         self.assertEqual(decide(os.path.join(home, ".bashrc")), "deny")
-        self.assertEqual(decide(os.path.join(home, ".claude", "projects", "p", "memory", "n.md")), "")
+        self.assertEqual(decide(os.path.join(home, ".claude", "projects", own_slug, "memory", "n.md")), "")
         self.assertEqual(decide(os.path.join(proj, "src", "app.py")), "")
+
+    def test_memory_exemption_is_only_for_this_project(self):
+        # PR #5 security review: any project's memory folder was writable (cross-project injection).
+        home = os.path.join(self.cwd, "fakehome")
+        proj = os.path.join(self.cwd, "my_repo")
+        sub = os.path.join(proj, "pkg")
+        os.makedirs(sub)
+        subprocess.run(["git", "init", "-q", proj], check=True)
+        own = proj.replace("/", "-")
+        mem = lambda slug: os.path.join(home, ".claude", "projects", slug, "memory", "MEMORY.md")
+
+        def decide(path, cwd, extra_env=None):
+            payload = {"tool_name": "Write", "cwd": cwd, "tool_input": {"file_path": path}}
+            env = {**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, "HOME": home, **(extra_env or {})}
+            res = subprocess.run([HOOK_BASH, os.path.join(SCRIPTS, "protect-files.sh")], input=json.dumps(payload),
+                                 capture_output=True, text=True, timeout=30, env=env)
+            return json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"] if res.stdout.strip() else ""
+        self.assertEqual(decide(mem(own), proj), "")                     # own project
+        self.assertEqual(decide(mem(own), sub), "")                      # subfolder shares the repo's memory
+        self.assertEqual(decide(mem(own.replace("_", "-")), proj), "")   # other documented-style encoding
+        self.assertEqual(decide(mem("-home-victim-project-b"), proj), "deny")
+        self.assertEqual(decide(mem("custom"), proj, {"CLAUDE_CODE_PROJECT_DIR_NAME": "custom"}), "")
 
     def test_symlinked_path_to_a_guardrail(self):
         os.makedirs(os.path.join(self.cwd, ".claude"))

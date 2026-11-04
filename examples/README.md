@@ -86,8 +86,7 @@ cp "$FW/enforcement/github/CODEOWNERS" .github/CODEOWNERS   # edit the team name
 
 | Hook | Watches | Blocks |
 |------|---------|--------|
-| `guard-bash.py` | Shell commands | Everything in the list below |
-| `block-secret-commit.sh` | `git commit` | Commits whose staged diff contains a secret |
+| `guard-bash.py` | Shell commands | Everything in the list below, plus commits whose added lines contain a secret |
 | `block-secret-write.sh` | Write / Edit | Writing a secret into a file |
 | `protect-files.sh` | Read / Write / Edit | Credential and system folders; asks before protected files |
 

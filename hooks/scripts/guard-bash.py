@@ -266,6 +266,48 @@ def current_branch(cwd):
         return ""
 
 
+# --------------------------------------------------------------------------- secret scan
+
+def load_secret_pattern():
+    """Read SECRET_PATTERN from secret-patterns.sh (the single source shared with the
+    bash hooks) and convert POSIX classes to Python syntax."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret-patterns.sh")
+    try:
+        with open(path) as fh:
+            for line in fh:
+                if line.startswith('SECRET_PATTERN="'):
+                    raw = line.strip()[len('SECRET_PATTERN="'):-1].replace('\\"', '"')
+                    return re.compile(raw.replace("[:space:]", r"\s"))
+    except (OSError, re.error):
+        pass
+    return None
+
+
+def scan_commit_for_secrets(repo, worktree):
+    """Block a commit whose added lines contain a secret.
+
+    Reads the whole diff (no early-exit pipe), scans only added lines (so removing a
+    leaked secret is allowed), and fails closed if the changes cannot be scanned.
+    """
+    pattern = load_secret_pattern()
+    if pattern is None:
+        deny("cannot load secret patterns (hooks/scripts/secret-patterns.sh) to scan this commit")
+    diffs = [["diff", "--cached"]] + ([["diff"]] if worktree else [])
+    for extra in diffs:
+        try:
+            res = subprocess.run(["git", "-C", repo] + extra + ["--no-color", "--no-ext-diff", "-U0"],
+                                 capture_output=True, timeout=20)
+        except (OSError, subprocess.SubprocessError):
+            deny("cannot scan the changes this commit would record")
+        if res.returncode != 0:
+            deny("cannot scan the changes this commit would record (git diff failed in %s)" % repo)
+        for line in res.stdout.decode("utf-8", "replace").splitlines():
+            if line.startswith("+") and not line.startswith("+++") and pattern.search(line):
+                deny("the changes this commit would record appear to contain a secret "
+                     "(API key, private key, password or connection string). Use an environment "
+                     "variable or secret manager, then retry")
+
+
 # --------------------------------------------------------------------------- checks
 
 def check_inline_code(code):
@@ -279,12 +321,14 @@ def check_inline_code(code):
 
 
 def check_git(args, ctx):
-    i, sub = 0, ""
+    i, sub, repo = 0, "", ctx["cwd"]
     while i < len(args):
         a = args[i]
         if a in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"):
             if a == "-c" and i + 1 < len(args) and args[i + 1].lower().startswith("core.hookspath"):
                 deny("disabling git hooks (core.hooksPath)")
+            if a == "-C" and i + 1 < len(args):  # -C may repeat; each is relative to the last
+                repo = os.path.join(repo, os.path.expanduser(args[i + 1]))
             i += 2
             continue
         if a.lower().startswith(("--config-env", "-ccore.hookspath")):
@@ -304,20 +348,33 @@ def check_git(args, ctx):
         deny("rewriting git history")
 
     if sub in ("commit", "merge"):
+        # Options that take the NEXT word as their value (-s/--signoff and -S<key> do not).
         value_opts = {"-m", "-F", "-C", "-c", "-t", "--author", "--date", "--message", "--file",
-                      "--template", "--fixup", "--squash", "--trailer", "--cleanup", "-s", "-S"}
-        j = 0
+                      "--template", "--fixup", "--squash", "--trailer", "--cleanup",
+                      "--reuse-message", "--reedit-message", "--pathspec-from-file"}
+        worktree, j = False, 0
         while j < len(rest):
             r = rest[j]
             if r in value_opts:
                 j += 2
                 continue
+            if r == "--":
+                worktree = worktree or j + 1 < len(rest)
+                break
             cluster = short_cluster(r)
             if cluster:
                 head = re.split(r"[mFCct]", cluster, maxsplit=1)[0]  # letters before a value-taking flag
                 if "n" in head:
                     deny("skipping git hooks (-n)")
+                if re.search(r"[aio]", head):  # -a/--all, -i/--include, -o/--only
+                    worktree = True
+            elif r in ("--all", "--include", "--only") or r.startswith("--pathspec-from-file="):
+                worktree = True
+            elif not is_flag(r):
+                worktree = True  # a pathspec: commits working-tree content
             j += 1
+        if sub == "commit":
+            scan_commit_for_secrets(repo, worktree)
 
     if sub == "push":
         value_opts = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
@@ -421,6 +478,9 @@ def check_segment(words, redirects, piped, ctx, depth):
     if k >= len(words):
         return
     prog, args = os.path.basename(words[k]), words[k + 1:]
+
+    if prog == "cd" and args and not is_flag(args[-1]):
+        ctx["cwd"] = os.path.normpath(os.path.join(ctx["cwd"], os.path.expanduser(args[-1])))
 
     if prog in ("export", "declare", "typeset", "readonly", "local"):
         for a in args:

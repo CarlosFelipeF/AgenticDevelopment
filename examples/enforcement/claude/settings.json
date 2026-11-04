@@ -73,11 +73,7 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.py",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-secret-commit.sh"
+            "timeout": 30
           }
         ]
       },

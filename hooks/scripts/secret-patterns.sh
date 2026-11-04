@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Shared secret-detection patterns for block-secret-commit.sh and block-secret-write.sh.
+# Shared secret-detection patterns for block-secret-write.sh and guard-bash.py's commit scan
+# (guard-bash.py reads the SECRET_PATTERN line below; keep it on one line).
 # Kept in sync with the high-signal patterns in .agent/SECURITY.md (JWTs are left out:
 # test fixtures use them constantly).
 #

@@ -11,12 +11,13 @@ Major version because slash commands moved from `.agent/PROTOCOLS.md` to `skills
 ### Added
 - **Claude Code plugin** (`.claude-plugin/`, from PR #3): one install adds the enforcement hooks
   (`hooks/hooks.json`) and the slash-command skills (`skills/*/SKILL.md`).
-- **Plugin hooks** (from PR #3): `block-secret-commit.sh` (scans the staged diff),
-  `block-secret-write.sh`, `protect-files.sh` (credential and system folders; asks before
-  protected files). `guard-bash.py` is now the plugin's shell hook.
+- **Plugin hooks** (from PR #3): `block-secret-write.sh` and `protect-files.sh` (credential and
+  system folders; asks before protected files). `guard-bash.py` is the plugin's shell hook and
+  also scans every commit for secrets.
 - **`/verify` and `/handoff` skills**; `/commit` and `/security-review` skills updated with explicit
   staging, secret scanning, slopsquatting and agent-specific checks.
-- **`tests/test_plugin_hooks.py`**: tests for the secret-commit, secret-write and protected-file hooks.
+- **`tests/test_plugin_hooks.py`**: tests for the commit secret scan (with regressions for every
+  bypass above), secret writes and protected files.
 - `self-test.sh` checks plugin wiring (every hook script exists, every skill has a description)
   and that the version matches in `plugin.json`.
 - **Enforcement kit** (`examples/enforcement/`): Claude Code permission deny/ask lists, a
@@ -69,9 +70,14 @@ Major version because slash commands moved from `.agent/PROTOCOLS.md` to `skills
   against putting secrets in prompts.
 
 ### Fixed
-- `block-secret-commit.sh` (from PR #3) failed open on macOS: it used `mapfile` and an empty
-  array under `set -u` (bash 4+ only; macOS ships bash 3.2), and `sed` `\n` replacements that BSD
-  sed doesn't support. Now uses POSIX-portable `while read`, `awk` and `[[:space:]]`.
+- **Commit secret scan moved into `guard-bash.py`; `block-secret-commit.sh` (from PR #3) removed.**
+  The bash hook re-parsed shell commands with text tools and let secrets through when:
+  the secret came before a large diff (`grep -q` exit → SIGPIPE → `pipefail` skipped the deny),
+  the repo path was quoted (`git -C "/path" commit`), the commit was wrapped (`bash -c '…'`),
+  or on macOS bash 3.2 (`mapfile`, empty arrays under `set -u`, BSD `sed`). The first two were
+  found by Codex review on PR #4. The new scan reads the whole diff, scans only added lines (so
+  removing a leaked secret is allowed), follows `-C` and `cd`, and fails closed if it can't scan.
+- `guard-bash.py` treated `-s`/`-S` as taking a value, so `git commit -s -n` hid `-n` (`--no-verify`).
 - `agent-doctor` now fails when the shell hooks are installed but `jq` is missing (fail-open risk).
 
 ### Fixed during the 2.1.0 adversarial review (unreleased)

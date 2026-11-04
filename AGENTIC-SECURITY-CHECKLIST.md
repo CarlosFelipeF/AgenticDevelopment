@@ -63,7 +63,7 @@ The ten controls that matter most for teams using AI coding agents. Copy-ready v
 □ Alert: Blocked tool calls trigger review
 ```
 
-**Repo-level evidence:** `hooks/scripts/guard-bash.py`, `block-secret-commit.sh` and
+**Repo-level evidence:** `hooks/scripts/guard-bash.py` (including the commit secret scan) and
 `block-secret-write.sh` deny dangerous tool calls at the harness level (registered in
 `hooks/hooks.json`, tested in `tests/`).
 

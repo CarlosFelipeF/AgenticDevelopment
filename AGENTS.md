@@ -54,7 +54,7 @@ model decides, so they hold even under prompt injection:
 | Rule | Enforced by |
 |------|-------------|
 | No running downloaded code, skipping hooks, force or main pushes, secret reads or exfiltration, destructive deletes, `sudo`, or shell edits to governance files | `hooks/scripts/guard-bash.py` |
-| No committing secrets (scans the staged diff) | `hooks/scripts/block-secret-commit.sh` |
+| No committing secrets (scans the lines a commit would add; fails closed) | `hooks/scripts/guard-bash.py` |
 | No writing secrets to disk | `hooks/scripts/block-secret-write.sh` |
 | Protected files need approval; credential and system folders are blocked | `hooks/scripts/protect-files.sh` |
 

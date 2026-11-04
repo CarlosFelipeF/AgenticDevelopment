@@ -1,4 +1,4 @@
-"""Tests for the plugin's shell hooks in hooks/scripts/ (secret commit/write, protected files).
+"""Tests for the plugin hooks in hooks/scripts/: the commit secret scan, secret writes, protected files.
 
 Run:  python3 -m unittest discover -s tests -v
 Needs: bash, git, jq (the hooks use jq to read their JSON input).
@@ -7,12 +7,22 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "hooks", "scripts")
 FAKE_KEY = "sk-" + "a" * 24  # matches the provider-key pattern; not a real key
+
+
+GUARD = os.path.join(SCRIPTS, "guard-bash.py")
+
+
+def run_guard(command, cwd):
+    res = subprocess.run([sys.executable, GUARD], input=json.dumps({"tool_input": {"command": command}, "cwd": cwd}),
+                         capture_output=True, text=True, timeout=60)
+    return res.returncode
 
 
 def run(script, payload, cwd):
@@ -25,38 +35,80 @@ def run(script, payload, cwd):
     return res.returncode, decision
 
 
-@unittest.skipUnless(shutil.which("jq"), "jq is required by the plugin hooks")
 class SecretCommitTest(unittest.TestCase):
+    """The commit secret scan in guard-bash.py.
+
+    Includes regressions for bypasses in the old block-secret-commit.sh found in PR #4's
+    review: early-exit pipes on large diffs, quoted -C paths, bash -c wrappers, and
+    -s swallowing -n.
+    """
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.repo = self.tmp.name
+        self.repo = os.path.join(self.tmp.name, "my repo")  # a space on purpose
         subprocess.run(["git", "init", "-q", "-b", "feat", self.repo], check=True)
-        with open(os.path.join(self.repo, "cfg.py"), "w") as fh:
-            fh.write('key = "%s"\n' % FAKE_KEY)
-        subprocess.run(["git", "-C", self.repo, "add", "cfg.py"], check=True)
+        self.write("cfg.py", 'key = "%s"\n' % FAKE_KEY)
+        self.git("add", "cfg.py")
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def decide(self, command):
-        return run("block-secret-commit.sh", {"tool_input": {"command": command}, "cwd": self.repo}, self.repo)
+    def write(self, name, text):
+        with open(os.path.join(self.repo, name), "w") as fh:
+            fh.write(text)
+
+    def git(self, *args):
+        subprocess.run(["git", "-C", self.repo, "-c", "user.email=t@example.com", "-c", "user.name=t"] + list(args),
+                       check=True, capture_output=True)
+
+    def decide(self, command, cwd=None):
+        return run_guard(command, cwd or self.repo)
 
     def test_blocks_commit_of_staged_secret(self):
-        for cmd in ("git commit -m x", "cd . && git commit -m x",
-                    "git -C %s commit -m x" % self.repo, "git status; git commit -am x"):
+        for cmd in ("git commit -m x", "cd . && git commit -m x", "git status; git commit -am x",
+                    "git commit -s -m x", "bash -c 'git commit -m x'", 'echo "$(git commit -m x)"'):
             with self.subTest(cmd=cmd):
-                self.assertEqual(self.decide(cmd), (0, "deny"))
+                self.assertEqual(self.decide(cmd), 2)
 
-    def test_ignores_non_commit_commands(self):
-        for cmd in ("git status", "git log --oneline", "echo commit"):
+    def test_quoted_and_relative_repo_paths(self):
+        parent = self.tmp.name
+        for cmd in ('git -C "%s" commit -m x' % self.repo, "git -C 'my repo' commit -m x",
+                    'cd "my repo" && git commit -m x'):
             with self.subTest(cmd=cmd):
-                self.assertEqual(self.decide(cmd), (0, ""))
+                self.assertEqual(self.decide(cmd, parent), 2)
 
-    def test_allows_clean_commit(self):
-        with open(os.path.join(self.repo, "cfg.py"), "w") as fh:
-            fh.write('key = os.environ["API_KEY"]\n')
-        subprocess.run(["git", "-C", self.repo, "add", "cfg.py"], check=True)
-        self.assertEqual(self.decide("git commit -m x"), (0, ""))
+    def test_secret_before_a_large_diff(self):
+        self.write("big.txt", "ordinary line\n" * 100000)
+        self.git("add", "big.txt")
+        self.assertEqual(self.decide("git commit -m x"), 2)
+
+    def test_worktree_commits_scan_unstaged_changes(self):
+        self.git("commit", "-q", "--no-verify", "-m", "seed")  # test setup, outside the hook
+        self.write("cfg.py", 'key = "%s"\nmore = 1\n' % FAKE_KEY.replace("a", "b"))
+        self.assertEqual(self.decide("git commit -m x"), 0)   # nothing staged: index is clean
+        self.assertEqual(self.decide("git commit -am x"), 2)  # -a records the worktree
+        self.assertEqual(self.decide("git commit -m x cfg.py"), 2)  # pathspec too
+
+    def test_removing_a_leaked_secret_is_allowed(self):
+        self.git("commit", "-q", "--no-verify", "-m", "leak")
+        self.write("cfg.py", 'key = os.environ["API_KEY"]\n')
+        self.git("add", "cfg.py")
+        self.assertEqual(self.decide("git commit -m 'remove leaked key'"), 0)
+
+    def test_fails_closed_when_it_cannot_scan(self):
+        self.assertEqual(self.decide("git -C /nonexistent/repo commit -m x"), 2)
+
+    def test_signoff_does_not_hide_no_verify(self):
+        self.write("cfg.py", "print('clean')\n")
+        self.git("add", "cfg.py")
+        self.assertEqual(self.decide("git commit -s -n -m x"), 2)
+
+    def test_allows_clean_commit_and_other_commands(self):
+        self.write("cfg.py", 'key = os.environ["API_KEY"]\n')
+        self.git("add", "cfg.py")
+        for cmd in ("git commit -m x", "git status", "git log --oneline", "echo commit"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.decide(cmd), 0)
 
 
 @unittest.skipUnless(shutil.which("jq"), "jq is required by the plugin hooks")

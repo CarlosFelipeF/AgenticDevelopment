@@ -48,7 +48,7 @@ online may be logged, cached or indexed.
 cloud credential files) unless the human asks for that specific file in the current session.
 
 **Detect with tools, not by eye.** Regexes in a prompt are not a scanner. With the plugin installed,
-`hooks/scripts/block-secret-commit.sh` scans the staged diff before every `git commit` and
+`hooks/scripts/guard-bash.py` scans the lines every `git commit` would add and
 `hooks/scripts/block-secret-write.sh` blocks writing a secret to disk (patterns in
 `hooks/scripts/secret-patterns.sh`). Also run the project's secret scanner before committing (for example `gitleaks git --staged` or the pre-commit hook in
 `examples/enforcement/`). High-signal patterns to watch for while reading diffs:

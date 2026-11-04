@@ -18,4 +18,4 @@ description: Use for a focused security review of changes, checking for hardcode
   network calls; anything that combines all three legs of the Rule of Two (see `.agent/SECURITY.md`)
 - Changes to governance or guardrail files (`AGENTS.md`, `.agent/`, `hooks/`, CI) — flag for a human
 
-See `.agent/SECURITY.md` for the full OWASP ASI alignment reference and detection patterns. Note that secret commits and writes are also blocked deterministically by `hooks/scripts/block-secret-commit.sh` and `hooks/scripts/block-secret-write.sh` — this skill covers the categories those hooks don't (injection, XSS, path traversal, dependency risk).
+See `.agent/SECURITY.md` for the full OWASP ASI alignment reference and detection patterns. Note that secret commits and writes are also blocked deterministically by `hooks/scripts/guard-bash.py` (commit scan) and `hooks/scripts/block-secret-write.sh` — this skill covers the categories those hooks don't (injection, XSS, path traversal, dependency risk).

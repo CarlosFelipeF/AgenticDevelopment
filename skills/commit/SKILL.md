@@ -14,4 +14,4 @@ description: Use to create a well-formatted commit from staged changes, followin
 4. Show the message and file list, then commit on the working branch
    (with `autonomy: supervised`, wait for approval first; pushing always needs approval)
 
-Note: staged changes are also scanned for secrets by `hooks/scripts/block-secret-commit.sh` before the commit is allowed to run.
+Note: with the plugin installed, `hooks/scripts/guard-bash.py` scans the lines a commit would add for secrets before the commit is allowed to run.

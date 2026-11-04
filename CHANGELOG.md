@@ -18,7 +18,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   are case-insensitive). Before this, `.claude/./settings.json`, `.claude//settings.json`,
   `.claude/Settings.json` or a symlinked folder got past every check (found by GitHub
   code scanning and Codex review on PR #5). It fails closed if `python3` is missing, instead of
-  falling back to the raw path.
+  falling back to the raw path. A path counts as outside the project if either its written or
+  its resolved form is, so a repo symlink such as `docs/notes -> ~/.bashrc` can't be used to write
+  outside it, and your own `$HOME` is protected wherever it lives.
 - **`.git/config` and `.git/info/` are blocked for the file tools.** An agent could otherwise set
   `core.hooksPath` to switch off pre-commit checks, or `core.fsmonitor`/aliases that run commands
   the next time a human uses git. Edits under `.claude-plugin/` (plugin manifests) now ask first.

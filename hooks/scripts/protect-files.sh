@@ -93,13 +93,20 @@ esac
 
 # Home folders outside the project (Linux /home, macOS /Users), including other projects'
 # .claude/ folders. The only exemption is your own Claude Code memory folder.
+# A path counts as outside the project if EITHER form is outside: a symlink inside the repo
+# (docs/notes -> ~/.bashrc) is inside as written but outside once resolved. The resolved
+# forms of the file and the project are compared with each other, so a project that lives
+# under a symlinked folder (macOS /home) still counts as inside.
 in_homes() {
   case "$1" in /home/*|/users/*|/system/volumes/data/home/*|/system/volumes/data/users/*) return 0 ;; esac
+  [ -n "$H" ] && case "$1" in "$H"/*) return 0 ;; esac          # your own home, wherever it is
+  [ -n "$HN" ] && case "$1" in "$HN"/*) return 0 ;; esac
   return 1
 }
-if { in_homes "$N" || in_homes "$P"; } && [ -n "$C" ] && [[ "$P" != "$C"/* && "$N" != "$CN"/* ]]; then
-  if [[ -z "$H" || ( "$P" != "$H"/.claude/projects/*/memory/* && "$N" != "$HN"/.claude/projects/*/memory/* ) ]]; then
-    deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory."
+if { in_homes "$N" || in_homes "$P"; } && [ -n "$C" ] && [[ "$P" != "$C"/* || "$N" != "$CN"/* ]]; then
+  # The memory exemption needs the RESOLVED path inside your own memory folder.
+  if [[ -z "$H" || "$P" != "$H"/.claude/projects/*/memory/* ]]; then
+    deny "Blocked by .agent/CONSTRAINTS.md: file is outside the current working directory, or a link inside it points outside."
   fi
 fi
 

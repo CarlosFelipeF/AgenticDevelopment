@@ -222,6 +222,24 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
                                      env={"PATH": bindir, "HOME": self.cwd}, timeout=30)
                 self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
 
+    def test_symlink_inside_project_pointing_outside(self):
+        # PR #5 security review: docs/notes -> ~/.bashrc was treated as inside the project.
+        home = os.path.join(self.cwd, "fakehome")
+        proj = os.path.join(self.cwd, "proj")
+        os.makedirs(os.path.join(home, ".claude", "projects", "p", "memory"))
+        os.makedirs(os.path.join(proj, "docs"))
+        open(os.path.join(home, ".bashrc"), "w").close()
+        os.symlink(os.path.join(home, ".bashrc"), os.path.join(proj, "docs", "notes"))
+        os.symlink(os.path.join(home, ".claude", "projects", "p", "memory"), os.path.join(proj, "mem"))
+
+        def decide(path):
+            payload = {"tool_name": "Write", "cwd": proj, "tool_input": {"file_path": path}}
+            return run("protect-files.sh", payload, self.cwd, home=home)[1]
+        self.assertEqual(decide(os.path.join(proj, "docs", "notes")), "deny")
+        self.assertEqual(decide(os.path.join(home, ".bashrc")), "deny")
+        self.assertEqual(decide(os.path.join(home, ".claude", "projects", "p", "memory", "n.md")), "")
+        self.assertEqual(decide(os.path.join(proj, "src", "app.py")), "")
+
     def test_symlinked_path_to_a_guardrail(self):
         os.makedirs(os.path.join(self.cwd, ".claude"))
         os.symlink(os.path.join(self.cwd, ".claude"), os.path.join(self.cwd, "innocent"))

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/guard-bash.py\"",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/guard-bash.py\"; rc=$?; [ \"$rc\" -eq 0 ] || { [ \"$rc\" -eq 2 ] || echo \"guard-bash: python3 is missing or the hook failed; blocking to fail secure.\" >&2; exit 2; }",
             "timeout": 30
           }
         ]
@@ -25,7 +25,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-files.sh\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-files.py\"; rc=$?; [ \"$rc\" -eq 0 ] || { [ \"$rc\" -eq 2 ] || echo \"protect-files: python3 is missing or the hook failed; blocking to fail secure.\" >&2; exit 2; }",
+            "timeout": 15
           }
         ]
       }

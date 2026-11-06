@@ -132,6 +132,12 @@ BLOCK = [
     "bash -c 'echo x > AGENTS.md'",
     "echo \"$(echo x > AGENTS.md)\"",
     "node -e \"require('fs').writeFileSync('AGENTS.md','x')\"",
+    # Shared pathpolicy rules: case, "." and "//" spellings and git config (v3.2)
+    "echo x > .CLAUDE/settings.json",
+    "echo x > .claude/./hooks/x.sh",
+    "printf x >> .git/config",
+    "cp evil .git/info/exclude",
+    "tee .claude/skills/x/SKILL.md < evil",
 ]
 
 ALLOW = [

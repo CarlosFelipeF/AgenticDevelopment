@@ -25,9 +25,10 @@ else
 fi
 
 step "Python syntax"
-python3 - <<'PY' && ok "guard-bash.py and tests compile" || bad "python compile"
+python3 - <<'PY' && ok "hook scripts and tests compile" || bad "python compile"
 import ast, sys
-for path in ("hooks/scripts/guard-bash.py", "tests/test_guard_bash.py", "tests/test_plugin_hooks.py"):
+for path in ("hooks/scripts/guard-bash.py", "hooks/scripts/protect-files.py", "hooks/scripts/pathpolicy.py",
+             "tests/test_guard_bash.py", "tests/test_plugin_hooks.py"):
     ast.parse(open(path).read(), path)
 PY
 

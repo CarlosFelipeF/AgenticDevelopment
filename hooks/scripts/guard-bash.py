@@ -14,7 +14,7 @@ Defence in depth, NOT a sandbox. It cannot see what a script does once written t
 disk, or what inline Python/Node code does at run time. Pair it with the permission
 deny-list in settings.json, branch protection, CI and a sandboxed environment.
 
-Install : copy to .claude/hooks/guard-bash.py (see examples/README.md)
+Install : copy with pathpolicy.py to .claude/hooks/ (see examples/README.md)
 Test    : python3 -m unittest discover -s tests
 Exit 2  : block; the reason on stderr is shown to the agent.
 Exit 0  : no objection; Claude Code's normal permission rules then apply.
@@ -27,6 +27,10 @@ import re
 import shlex
 import subprocess
 import sys
+
+sys.dont_write_bytecode = True  # never write caches into the plugin or .claude/hooks folder
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pathpolicy  # noqa: E402  (shared with protect-files.py)
 
 MAX_DEPTH = 6
 
@@ -244,7 +248,14 @@ def is_secret(word, cwd=""):
 
 
 def is_governance(word, cwd=""):
-    return any(GOVERNANCE_RE.search(c) for c in expand_paths(word, cwd))
+    """Guardrail or governance file? The regex catches the common spellings; pathpolicy adds
+    canonical matching (case, ".", "//", symlinks) and .git/config, shared with protect-files."""
+    for cand in expand_paths(word, cwd):
+        if GOVERNANCE_RE.search(cand):
+            return True
+        if cand and not cand.startswith(("$", "~")) and pathpolicy.is_governance_target(cand, cwd or os.getcwd()):
+            return True
+    return False
 
 
 def is_flag(word):

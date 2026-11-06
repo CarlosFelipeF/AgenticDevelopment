@@ -294,29 +294,62 @@ def load_secret_pattern():
     return None
 
 
-def scan_commit_for_secrets(repo, worktree):
+SECRET_IN_COMMIT = ("the changes this commit would record appear to contain a secret "
+                    "(API key, private key, password or connection string). Use an environment "
+                    "variable or secret manager, then retry")
+MAX_UNTRACKED_FILES, MAX_FILE_BYTES = 2000, 2 * 1024 * 1024
+
+
+def _git(repo, args):
+    try:
+        res = subprocess.run(["git", "-C", repo] + args, capture_output=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        deny("cannot scan the changes this commit would record")
+    if res.returncode != 0:
+        deny("cannot scan the changes this commit would record (git %s failed in %s)" % (args[0], repo))
+    return res.stdout
+
+
+def scan_commit_for_secrets(repo, worktree, pending_adds=()):
     """Block a commit whose added lines contain a secret.
 
     Reads the whole diff (no early-exit pipe), scans only added lines (so removing a
     leaked secret is allowed), and fails closed if the changes cannot be scanned.
+
+    `pending_adds` are (pathspecs, force, tracked_only) from `git add` earlier in the SAME
+    command. The hook runs before the command, so those files aren't staged yet: their tracked
+    changes and any untracked files they would add are scanned now, read straight from disk.
+    `git add -u` only updates tracked files, so its untracked files are not scanned.
     """
     pattern = load_secret_pattern()
     if pattern is None:
         deny("cannot load secret patterns (hooks/scripts/secret-patterns.sh) to scan this commit")
     diffs = [["diff", "--cached"]] + ([["diff"]] if worktree else [])
+    for specs, _force, _tracked_only in pending_adds:
+        diffs.append(["diff", "--"] + specs)
     for extra in diffs:
-        try:
-            res = subprocess.run(["git", "-C", repo] + extra + ["--no-color", "--no-ext-diff", "-U0"],
-                                 capture_output=True, timeout=20)
-        except (OSError, subprocess.SubprocessError):
-            deny("cannot scan the changes this commit would record")
-        if res.returncode != 0:
-            deny("cannot scan the changes this commit would record (git diff failed in %s)" % repo)
-        for line in res.stdout.decode("utf-8", "replace").splitlines():
+        cmd = extra[:1] + ["--no-color", "--no-ext-diff", "-U0"] + extra[1:]
+        for line in _git(repo, cmd).decode("utf-8", "replace").splitlines():
             if line.startswith("+") and not line.startswith("+++") and pattern.search(line):
-                deny("the changes this commit would record appear to contain a secret "
-                     "(API key, private key, password or connection string). Use an environment "
-                     "variable or secret manager, then retry")
+                deny(SECRET_IN_COMMIT)
+    for specs, force, tracked_only in pending_adds:
+        if tracked_only:
+            continue
+        listing = ["ls-files", "-z", "--others"] + ([] if force else ["--exclude-standard"]) + ["--"] + specs
+        names = [n for n in _git(repo, listing).decode("utf-8", "replace").split("\0") if n]
+        if len(names) > MAX_UNTRACKED_FILES:
+            deny("too many untracked files to scan before this commit; stage them in smaller steps")
+        for name in names:
+            path = os.path.join(repo, name)
+            try:
+                if os.path.getsize(path) > MAX_FILE_BYTES:
+                    continue  # large files are almost never source; gitleaks in CI still scans them
+                with open(path, "rb") as fh:
+                    text = fh.read().decode("utf-8", "replace")
+            except OSError:
+                continue
+            if pattern.search(text):
+                deny(SECRET_IN_COMMIT)
 
 
 # --------------------------------------------------------------------------- checks
@@ -385,7 +418,35 @@ def check_git(args, ctx):
                 worktree = True  # a pathspec: commits working-tree content
             j += 1
         if sub == "commit":
-            scan_commit_for_secrets(repo, worktree)
+            pending = [(specs, force, tracked) for r, specs, force, tracked in ctx["pending_adds"] if r == repo]
+            scan_commit_for_secrets(repo, worktree, pending)
+
+    if sub == "add":
+        # Remember what this command is about to stage, for a commit later in the same command.
+        value_opts = {"--chmod", "--pathspec-from-file"}
+        specs, force, all_files, update_only, j = [], False, False, False, 0
+        while j < len(rest):
+            r = rest[j]
+            if r in value_opts:
+                j += 2
+                continue
+            if r in ("-f", "--force") or "f" in short_cluster(r):
+                force = True
+            cluster = set(short_cluster(r))
+            if r in ("-A", "--all", "--no-ignore-removal") or "A" in cluster:
+                all_files = True
+            if r in ("-u", "--update") or "u" in cluster:
+                update_only = True
+            if r == "--":
+                specs.extend(rest[j + 1:])
+                break
+            if not is_flag(r):
+                specs.append(r)
+            j += 1
+        if all_files or (update_only and not specs) or not specs:
+            specs = ["."]
+        # -u stages tracked files only (unless -A is also given, which includes everything).
+        ctx["pending_adds"].append((repo, specs, force, update_only and not all_files))
 
     if sub == "push":
         value_opts = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
@@ -621,7 +682,7 @@ def main():
         return 2
     if not command.strip():
         return 0
-    ctx = {"cwd": cwd, "env": {}, "branch": current_branch(cwd)}
+    ctx = {"cwd": cwd, "env": {}, "branch": current_branch(cwd), "pending_adds": []}
     try:
         check_command(command, ctx)
     except Blocked as blocked:

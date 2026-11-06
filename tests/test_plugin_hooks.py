@@ -110,6 +110,48 @@ class SecretCommitTest(unittest.TestCase):
         self.git("add", "cfg.py")
         self.assertEqual(self.decide("git commit -s -n -m x"), 2)
 
+    def test_add_and_commit_in_one_command(self):
+        # Found by the plugin smoke test: the hook runs before the command, so files that a
+        # `git add` in the same command is about to stage weren't scanned.
+        self.git("rm", "-q", "--cached", "cfg.py")
+        os.remove(os.path.join(self.repo, "cfg.py"))
+        self.write("new.py", 'token = "%s"\n' % FAKE_KEY)            # untracked, with a key
+        self.write("clean.py", "print('ok')\n")
+        self.write(".gitignore", ".env.local\n")
+        self.write(".env.local", 'KEY = "%s"\n' % FAKE_KEY)          # ignored, with a key
+        for cmd in ("git add new.py && git commit -m x", "git add -A && git commit -m x",
+                    "git add . && git commit -m x", "git add -- new.py; git commit -m x",
+                    "bash -c 'git add new.py && git commit -m x'",
+                    "git add -f .env.local && git commit -m x"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.decide(cmd), 2)
+        for cmd in ("git add clean.py && git commit -m x",       # new.py isn't being added
+                    "git add new.py",                              # no commit in this command
+                    "git add clean.py .gitignore && git commit -m x"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.decide(cmd), 0)
+
+    def test_add_and_commit_scans_tracked_changes(self):
+        self.write("cfg.py", "print('clean')\n")
+        self.git("add", "cfg.py")
+        self.git("commit", "-q", "--no-verify", "-m", "seed")      # test setup, outside the hook
+        self.write("cfg.py", 'key = "%s"\n' % FAKE_KEY)            # modified, not staged
+        self.assertEqual(self.decide("git add cfg.py && git commit -m x"), 2)
+        self.assertEqual(self.decide("git add -u && git commit -m x"), 2)
+
+    def test_add_update_ignores_untracked_files(self):
+        # PR #8 review (Codex): `git add -u` stages tracked files only, so an unrelated
+        # untracked file must not block a clean commit.
+        self.write("cfg.py", "print('clean')\n")
+        self.git("add", "cfg.py")
+        self.git("commit", "-q", "--no-verify", "-m", "seed")
+        self.write("cfg.py", "print('still clean')\n")              # clean tracked edit
+        self.write("scratch.py", 'k = "%s"\n' % FAKE_KEY)            # unrelated, untracked
+        self.assertEqual(self.decide("git add -u && git commit -m x"), 0)
+        self.assertEqual(self.decide("git add --update . && git commit -m x"), 0)
+        self.assertEqual(self.decide("git add -A && git commit -m x"), 2)   # -A does stage it
+        self.assertEqual(self.decide("git add -uA && git commit -m x"), 2)
+
     def test_allows_clean_commit_and_other_commands(self):
         self.write("cfg.py", 'key = os.environ["API_KEY"]\n')
         self.git("add", "cfg.py")

@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OWASP](https://img.shields.io/badge/OWASP-Agentic%20Top%2010%202026-orange.svg)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-purple.svg)](https://agents.md)
-[![Framework](https://img.shields.io/badge/Framework-v3.2.0-green.svg)](CHANGELOG.md)
+[![Framework](https://img.shields.io/badge/Framework-v3.2.1-green.svg)](CHANGELOG.md)
 
 **A governance framework for AI coding agents** — clear rules for the agent, and real controls
 around it, so AI-assisted development stays secure, consistent and reviewable.
@@ -136,6 +136,14 @@ with human review, and CODEOWNERS on the governance files.
 
 ```bash
 "$FW/scripts/agent-doctor.sh"
+```
+
+To prove the plugin's hooks really fire in Claude Code (not just that the files are there), run
+the smoke test. It builds a throwaway sandbox, gives you a prompt to paste into a session that
+loads the plugin, then checks what actually happened:
+
+```bash
+"$FW/scripts/plugin-smoke-test.sh" setup     # follow the steps it prints
 ```
 
 Then ask your agent: *"What are your non-negotiable rules, and what must you do before saying a task is done?"*
@@ -460,7 +468,11 @@ No. It reduces risk and makes agent work easier to review. Humans stay accountab
 
 ## Roadmap
 
-### v3.2.0 (Current)
+### v3.2.1 (Current)
+- Commit secret scan covers `git add … && git commit` in one command
+- `scripts/plugin-smoke-test.sh`: prove the hooks fire in a real Claude Code session
+
+### v3.2.0
 - File-protection hook rewritten in Python on a shared, tested path module (`pathpolicy.py`)
 - Shell commands get the same canonical path rules (case, `.`/`//`, symlinks, `.git/config`)
 - Python hooks fail closed if `python3` is missing or a hook crashes

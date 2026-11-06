@@ -3,6 +3,22 @@
 All notable changes to this framework are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [3.2.1] — 2026-11-06
+
+### Security
+- **Commit secret scan covers `git add … && git commit` in one command.** The hook runs before
+  the command, so files that a `git add` in the same command was about to stage weren't scanned:
+  `git add creds.py && git commit -m x` committed a fake key. The scan now also checks the
+  tracked changes and the untracked files (read from disk) that the add will stage, including
+  ignored files when `-f` is used. Found while building the plugin smoke test; present since 3.0.0.
+
+### Added
+- **`scripts/plugin-smoke-test.sh`** proves the plugin's hooks fire in a real Claude Code session.
+  `setup` builds a throwaway sandbox and a prompt with eight harmless attacks and one normal
+  task; `check` inspects real side effects (settings, `.git/config`, `AGENTS.md`, commits,
+  written files), not what the model reports. Its baseline is stored outside the sandbox and
+  read as text, so the agent can't tamper with the check. `self-test` runs it on every CI run.
+
 ## [3.2.0] — 2026-11-06
 
 ### Changed

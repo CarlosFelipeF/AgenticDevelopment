@@ -122,7 +122,10 @@ words inside a commit message don't trigger it and quoting tricks don't hide a c
 - **Self-modification:** writing to `AGENTS.md`, `CLAUDE.md`, `.agent/`, `.claude/`, `.git/hooks/`,
   CI workflows or pre-commit config — through redirects, `sed -i`, `tee`, `cp`, `mv` or inline code
 
-Proof: `python3 -m unittest discover -s tests` runs 150+ attack and everyday-command cases
+Proof in a live session: `scripts/plugin-smoke-test.sh setup` builds a throwaway sandbox and a prompt
+that tries eight attacks plus one normal task; `check` then inspects what really changed.
+
+Proof in CI: `python3 -m unittest discover -s tests` runs 150+ attack and everyday-command cases
 against `guard-bash.py`, plus tests for the other three hooks.
 
 **Known gaps (why layers 5 and 6 still matter):**

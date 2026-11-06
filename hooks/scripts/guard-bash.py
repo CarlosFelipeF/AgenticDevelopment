@@ -316,22 +316,25 @@ def scan_commit_for_secrets(repo, worktree, pending_adds=()):
     Reads the whole diff (no early-exit pipe), scans only added lines (so removing a
     leaked secret is allowed), and fails closed if the changes cannot be scanned.
 
-    `pending_adds` are (pathspecs, force) from `git add` earlier in the SAME command. The hook
-    runs before the command, so those files aren't staged yet: their tracked changes and any
-    untracked files they would add are scanned now, read straight from disk.
+    `pending_adds` are (pathspecs, force, tracked_only) from `git add` earlier in the SAME
+    command. The hook runs before the command, so those files aren't staged yet: their tracked
+    changes and any untracked files they would add are scanned now, read straight from disk.
+    `git add -u` only updates tracked files, so its untracked files are not scanned.
     """
     pattern = load_secret_pattern()
     if pattern is None:
         deny("cannot load secret patterns (hooks/scripts/secret-patterns.sh) to scan this commit")
     diffs = [["diff", "--cached"]] + ([["diff"]] if worktree else [])
-    for specs, _force in pending_adds:
+    for specs, _force, _tracked_only in pending_adds:
         diffs.append(["diff", "--"] + specs)
     for extra in diffs:
         cmd = extra[:1] + ["--no-color", "--no-ext-diff", "-U0"] + extra[1:]
         for line in _git(repo, cmd).decode("utf-8", "replace").splitlines():
             if line.startswith("+") and not line.startswith("+++") and pattern.search(line):
                 deny(SECRET_IN_COMMIT)
-    for specs, force in pending_adds:
+    for specs, force, tracked_only in pending_adds:
+        if tracked_only:
+            continue
         listing = ["ls-files", "-z", "--others"] + ([] if force else ["--exclude-standard"]) + ["--"] + specs
         names = [n for n in _git(repo, listing).decode("utf-8", "replace").split("\0") if n]
         if len(names) > MAX_UNTRACKED_FILES:
@@ -415,13 +418,13 @@ def check_git(args, ctx):
                 worktree = True  # a pathspec: commits working-tree content
             j += 1
         if sub == "commit":
-            pending = [(specs, force) for r, specs, force in ctx["pending_adds"] if r == repo]
+            pending = [(specs, force, tracked) for r, specs, force, tracked in ctx["pending_adds"] if r == repo]
             scan_commit_for_secrets(repo, worktree, pending)
 
     if sub == "add":
         # Remember what this command is about to stage, for a commit later in the same command.
         value_opts = {"--chmod", "--pathspec-from-file"}
-        specs, force, whole_repo, j = [], False, False, 0
+        specs, force, all_files, update_only, j = [], False, False, False, 0
         while j < len(rest):
             r = rest[j]
             if r in value_opts:
@@ -429,17 +432,21 @@ def check_git(args, ctx):
                 continue
             if r in ("-f", "--force") or "f" in short_cluster(r):
                 force = True
-            if r in ("-A", "--all", "-u", "--update") or (short_cluster(r) and set(short_cluster(r)) & {"A", "u"}):
-                whole_repo = True
+            cluster = set(short_cluster(r))
+            if r in ("-A", "--all", "--no-ignore-removal") or "A" in cluster:
+                all_files = True
+            if r in ("-u", "--update") or "u" in cluster:
+                update_only = True
             if r == "--":
                 specs.extend(rest[j + 1:])
                 break
             if not is_flag(r):
                 specs.append(r)
             j += 1
-        if whole_repo or not specs:
+        if all_files or (update_only and not specs) or not specs:
             specs = ["."]
-        ctx["pending_adds"].append((repo, specs, force))
+        # -u stages tracked files only (unless -A is also given, which includes everything).
+        ctx["pending_adds"].append((repo, specs, force, update_only and not all_files))
 
     if sub == "push":
         value_opts = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}

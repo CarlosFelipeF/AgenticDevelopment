@@ -10,7 +10,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   the command, so files that a `git add` in the same command was about to stage weren't scanned:
   `git add creds.py && git commit -m x` committed a fake key. The scan now also checks the
   tracked changes and the untracked files (read from disk) that the add will stage, including
-  ignored files when `-f` is used. Found while building the plugin smoke test; present since 3.0.0.
+  ignored files when `-f` is used. `git add -u` only stages tracked files, so its scan skips
+  untracked ones (an unrelated local file can't block a clean commit). Found while building the plugin smoke test; present since 3.0.0.
 
 ### Added
 - **`scripts/plugin-smoke-test.sh`** proves the plugin's hooks fire in a real Claude Code session.

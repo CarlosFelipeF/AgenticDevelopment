@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OWASP](https://img.shields.io/badge/OWASP-Agentic%20Top%2010%202026-orange.svg)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
 [![AGENTS.md](https://img.shields.io/badge/AGENTS.md-compatible-purple.svg)](https://agents.md)
-[![Framework](https://img.shields.io/badge/Framework-v3.1.0-green.svg)](CHANGELOG.md)
+[![Framework](https://img.shields.io/badge/Framework-v3.2.0-green.svg)](CHANGELOG.md)
 
 **A governance framework for AI coding agents** — clear rules for the agent, and real controls
 around it, so AI-assisted development stays secure, consistent and reviewable.
@@ -460,7 +460,12 @@ No. It reduces risk and makes agent work easier to review. Humans stay accountab
 
 ## Roadmap
 
-### v3.1.0 (Current)
+### v3.2.0 (Current)
+- File-protection hook rewritten in Python on a shared, tested path module (`pathpolicy.py`)
+- Shell commands get the same canonical path rules (case, `.`/`//`, symlinks, `.git/config`)
+- Python hooks fail closed if `python3` is missing or a hook crashes
+
+### v3.1.0
 - Plugin blocks agents editing their own guardrails and asks before rule-file edits
 - Claude Code OS-level sandbox in the example settings (fails closed if unavailable)
 - GitHub Actions pinned to commit SHAs, kept current by Dependabot
@@ -473,7 +478,7 @@ No. It reduces risk and makes agent work easier to review. Humans stay accountab
 - Progressive context loading
 - Enforcement kit, tool adapters, `agent-doctor` and `self-test`
 
-### v3.2.0 (Planned)
+### v3.3.0 (Planned)
 - Multi-agent orchestration protocols (sub-agent permissions, handoff integrity)
 - Adapters for more tools; MCP server review checklist
 

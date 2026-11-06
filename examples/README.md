@@ -15,7 +15,7 @@ Copy what you need into your project. Nothing here is active in this repository.
 | 3. Hooks | Check each command and file action before it runs | ⚠️ Strong, not perfect | `../hooks/` (plugin) |
 | 4. Pre-commit | Blocks secrets and junk at commit time | ⚠️ Unless bypassed | `enforcement/pre-commit-config.yaml` |
 | 5. CI + branch protection + CODEOWNERS | Server-side checks; named humans must approve | ✅ Yes | `enforcement/github/` |
-| 6. Sandbox + egress control | Limits what any process can reach | ✅ Yes | Your platform — see `AGENTIC-SECURITY-CHECKLIST.md` |
+| 6. Sandbox + egress control | Limits what any process can reach | ✅ Yes | `enforcement/claude/settings.json` (`sandbox`), plus your platform |
 
 Rule of thumb: **anything that must never happen needs a control at layer 2 or above.**
 Layers 3 and 4 catch most mistakes early; layers 5 and 6 are the ones an attacker can't talk past.
@@ -45,7 +45,7 @@ to `.claude/`).
 ```
 (On Claude Code versions older than 2.1.275, first run
 `/plugin marketplace add CarlosFelipeF/AgenticDevelopment`, then `/plugin install agent-governance-framework`.)
-Then copy only the `permissions` block of `enforcement/claude/settings.json` into your
+Then copy the `sandbox` and `permissions` blocks of `enforcement/claude/settings.json` into your
 `.claude/settings.json` — the plugin registers the hooks itself.
 
 **Without the plugin**, copy the hooks into the project and use the full settings file:
@@ -82,13 +82,30 @@ cp "$FW/enforcement/github/CODEOWNERS" .github/CODEOWNERS   # edit the team name
 - Turn on secret scanning push protection if your host offers it
 - Give agents their own credentials with the least access they need — never your personal admin token
 
+## The sandbox
+
+Hooks check commands one by one; the sandbox limits what *any* command can touch, at the
+operating-system level (Seatbelt on macOS, bubblewrap on Linux and WSL2). The example settings
+turn it on with three choices that matter:
+
+- `failIfUnavailable: true` — Claude Code refuses to start if the sandbox can't run, instead of
+  quietly running commands without it (the default behaviour).
+- `allowUnsandboxedCommands: false` — the agent can't retry a failed command outside the sandbox.
+- `network.allowedDomains` — sandboxed commands reach only these hosts. Add your own registries;
+  everything else is blocked, which stops most data exfiltration.
+
+Linux and WSL2 need `bubblewrap` and `socat` (`sudo apt-get install bubblewrap socat`). Native
+Windows isn't supported — with `failIfUnavailable: true` Claude Code won't start there, so remove
+that line if your team works on native Windows. See the
+[sandboxing docs](https://code.claude.com/docs/en/sandboxing).
+
 ## What the hooks block
 
 | Hook | Watches | Blocks |
 |------|---------|--------|
 | `guard-bash.py` | Shell commands | Everything in the list below, plus commits whose added lines contain a secret |
 | `block-secret-write.sh` | Write / Edit | Writing a secret into a file |
-| `protect-files.sh` | Read / Write / Edit | Credential and system folders; asks before protected files |
+| `protect-files.sh` | Read / Write / Edit | Credential and system folders; edits to `.claude/` settings, hooks, plugins and `.git/hooks/`; asks before editing `AGENTS.md`, `.agent/` and other protected files |
 
 `guard-bash.py` tokenises commands like a shell (quotes, pipes, `&&`, `$(...)`, heredocs), so
 words inside a commit message don't trigger it and quoting tricks don't hide a command. It blocks:
@@ -120,8 +137,9 @@ Found a bypass? Report it privately (see `.github/SECURITY.md`), then add a test
 
 ## Notes
 
-- **Your agent can't edit its own guardrails** — by design. The deny rules cover `AGENTS.md`,
-  `.agent/` and `.claude/`. Edit those files yourself, or approve the change outside the agent.
+- **Your agent can't edit its own guardrails** — by design. The plugin blocks edits to `.claude/`
+  settings, hooks and plugins and asks before edits to `AGENTS.md` and `.agent/`; the example deny
+  rules block both. Edit those files yourself, or approve the change outside the agent.
 - **Review before copying.** These are starting points. Tune the deny and ask lists to your stack.
-- **Pin versions.** Versions shown were current in November 2026. Pin GitHub Actions to a full
-  commit SHA in production and run `pre-commit autoupdate` regularly.
+- **Pin versions.** The example workflows pin GitHub Actions to full commit SHAs; copy
+  `enforcement/github/dependabot.yml` so Dependabot keeps them current. Run `pre-commit autoupdate` regularly.

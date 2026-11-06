@@ -25,10 +25,16 @@ def run_guard(command, cwd):
     return res.returncode
 
 
-def run(script, payload, cwd):
-    res = subprocess.run(["bash", os.path.join(SCRIPTS, script)], input=json.dumps(payload),
-                         capture_output=True, text=True, cwd=cwd, timeout=30,
-                         env={**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT})
+# CI sets HOOK_BASH=/bin/bash on macOS to test with the bash 3.2 that ships there.
+HOOK_BASH = os.environ.get("HOOK_BASH", "bash")
+
+
+def run(script, payload, cwd, home=None):
+    env = {**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT}
+    if home:
+        env["HOME"] = home
+    res = subprocess.run([HOOK_BASH, os.path.join(SCRIPTS, script)], input=json.dumps(payload),
+                         capture_output=True, text=True, cwd=cwd, timeout=30, env=env)
     decision = ""
     if res.stdout.strip():
         decision = json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"]
@@ -134,6 +140,134 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
         payload = {"tool_name": "Read", "cwd": self.cwd,
                    "tool_input": {"file_path": os.path.expanduser("~/.ssh/id_ed25519")}}
         self.assertEqual(run("protect-files.sh", payload, self.cwd), (0, "deny"))
+
+    def file_decision(self, tool, rel_path):
+        path = rel_path if os.path.isabs(rel_path) else os.path.join(self.cwd, rel_path)
+        payload = {"tool_name": tool, "cwd": self.cwd, "tool_input": {"file_path": path}}
+        return run("protect-files.sh", payload, self.cwd)
+
+    def test_blocks_edits_to_guardrails(self):
+        home = os.path.expanduser("~")
+        for path in (".claude/settings.json", ".claude/settings.local.json", ".claude/hooks/guard-bash.py",
+                     ".git/hooks/pre-commit",
+                     os.path.join(home, ".claude/plugins/cache/x/hooks/scripts/guard-bash.py")):
+            for tool in ("Write", "Edit"):
+                with self.subTest(path=path, tool=tool):
+                    self.assertEqual(self.file_decision(tool, path), (0, "deny"))
+
+    def test_asks_before_editing_governance_rules(self):
+        for path in ("AGENTS.md", "packages/api/AGENTS.md", "CLAUDE.md", ".agent/CONSTRAINTS.md",
+                     ".cursor/rules/agents.mdc", ".github/CODEOWNERS", ".pre-commit-config.yaml"):
+            with self.subTest(path=path):
+                self.assertEqual(self.file_decision("Edit", path), (0, "ask"))
+
+    def test_governance_files_stay_readable_and_memory_stays_writable(self):
+        for path in ("AGENTS.md", ".agent/SECURITY.md", ".claude/settings.json"):
+            with self.subTest(read=path):
+                self.assertEqual(self.file_decision("Read", path), (0, ""))
+        memory = os.path.join(os.path.expanduser("~"), ".claude/projects", self.cwd.replace("/", "-"),
+                              "memory/notes.md")  # this project's own memory folder
+        self.assertEqual(self.file_decision("Write", memory), (0, ""))
+        self.assertEqual(self.file_decision("Write", "src/app.py"), (0, ""))
+
+    def test_home_paths_outside_project(self):
+        def decide(path, cwd, home):
+            payload = {"tool_name": "Write", "cwd": cwd, "tool_input": {"file_path": path}}
+            return run("protect-files.sh", payload, self.cwd, home=home)[1]
+        for home in ("/home/tester", "/Users/tester"):
+            proj = home + "/proj"
+            with self.subTest(home=home):
+                own_mem = home + "/.claude/projects/" + proj.replace("/", "-") + "/memory/notes.md"
+                self.assertEqual(decide(own_mem, proj, home), "")
+                self.assertEqual(decide(home + "/.claude/plugins/c/hooks/scripts/guard-bash.py", proj, home), "deny")
+                self.assertEqual(decide(home + "/.claude/settings.json", proj, home), "deny")
+                self.assertEqual(decide(home + "/other/file.txt", proj, home), "deny")
+                self.assertEqual(decide(proj + "/src/app.py", proj, home), "")
+                # PR #5 security review: the .claude/ exemption was wider than memory.
+                for planted in ("/.claude/agents/evil.md", "/.claude/skills/x/SKILL.md",
+                                "/.claude/commands/x.md", "/.claude/CLAUDE.md"):
+                    self.assertEqual(decide(home + planted, proj, home), "deny", planted)
+                self.assertEqual(decide("/home/other/proj2/.claude/commands/x.md", proj, home), "deny")
+                self.assertEqual(decide("/home/other/.claude/projects/p/memory/x.md", proj, home), "deny")
+
+    def test_equivalent_spellings_of_guardrail_paths(self):
+        # PR #5 security review: raw-string matching let these through.
+        for path in (".claude/./settings.json", ".claude//settings.json", ".git/hooks/./pre-commit",
+                     ".claude/Settings.json", ".claude/HOOKS/x.sh", "sub/../.claude/settings.json",
+                     "./.claude/settings.local.json"):
+            with self.subTest(path=path):
+                self.assertEqual(self.file_decision("Write", path), (0, "deny"))
+        for path in ("Agents.md", ".AGENT/SECURITY.md", ".claude/skills/x/SKILL.md"):
+            with self.subTest(path=path):
+                self.assertEqual(self.file_decision("Edit", path), (0, "ask"))
+
+    def test_git_config_and_plugin_manifests(self):
+        # PR #5 security review: .git/config can disable hooks or run commands later.
+        for path in (".git/config", ".git/info/exclude", ".git/./config"):
+            with self.subTest(path=path):
+                self.assertEqual(self.file_decision("Write", path), (0, "deny"))
+        self.assertEqual(self.file_decision("Edit", ".claude-plugin/plugin.json"), (0, "ask"))
+
+    def test_fails_closed_without_python3(self):
+        # PR #5 security review: without python3 the old fallback matched the raw path.
+        bindir = os.path.join(self.cwd, "bin-no-python")
+        os.makedirs(bindir)
+        for tool in ("jq", "tr", "basename", "cat"):
+            os.symlink(shutil.which(tool), os.path.join(bindir, tool))
+        bash = shutil.which(HOOK_BASH) or HOOK_BASH
+        for path in (".claude/./settings.json", "src/app.py"):
+            with self.subTest(path=path):
+                payload = {"tool_name": "Write", "cwd": self.cwd,
+                           "tool_input": {"file_path": os.path.join(self.cwd, path)}}
+                res = subprocess.run([bash, os.path.join(SCRIPTS, "protect-files.sh")],
+                                     input=json.dumps(payload), capture_output=True, text=True,
+                                     env={"PATH": bindir, "HOME": self.cwd}, timeout=30)
+                self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
+
+    def test_symlink_inside_project_pointing_outside(self):
+        # PR #5 security review: docs/notes -> ~/.bashrc was treated as inside the project.
+        home = os.path.join(self.cwd, "fakehome")
+        proj = os.path.join(self.cwd, "proj")
+        own_slug = proj.replace("/", "-")
+        os.makedirs(os.path.join(home, ".claude", "projects", own_slug, "memory"))
+        os.makedirs(os.path.join(proj, "docs"))
+        open(os.path.join(home, ".bashrc"), "w").close()
+        os.symlink(os.path.join(home, ".bashrc"), os.path.join(proj, "docs", "notes"))
+
+        def decide(path):
+            payload = {"tool_name": "Write", "cwd": proj, "tool_input": {"file_path": path}}
+            return run("protect-files.sh", payload, self.cwd, home=home)[1]
+        self.assertEqual(decide(os.path.join(proj, "docs", "notes")), "deny")
+        self.assertEqual(decide(os.path.join(home, ".bashrc")), "deny")
+        self.assertEqual(decide(os.path.join(home, ".claude", "projects", own_slug, "memory", "n.md")), "")
+        self.assertEqual(decide(os.path.join(proj, "src", "app.py")), "")
+
+    def test_memory_exemption_is_only_for_this_project(self):
+        # PR #5 security review: any project's memory folder was writable (cross-project injection).
+        home = os.path.join(self.cwd, "fakehome")
+        proj = os.path.join(self.cwd, "my_repo")
+        sub = os.path.join(proj, "pkg")
+        os.makedirs(sub)
+        subprocess.run(["git", "init", "-q", proj], check=True)
+        own = proj.replace("/", "-")
+        mem = lambda slug: os.path.join(home, ".claude", "projects", slug, "memory", "MEMORY.md")
+
+        def decide(path, cwd, extra_env=None):
+            payload = {"tool_name": "Write", "cwd": cwd, "tool_input": {"file_path": path}}
+            env = {**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, "HOME": home, **(extra_env or {})}
+            res = subprocess.run([HOOK_BASH, os.path.join(SCRIPTS, "protect-files.sh")], input=json.dumps(payload),
+                                 capture_output=True, text=True, timeout=30, env=env)
+            return json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"] if res.stdout.strip() else ""
+        self.assertEqual(decide(mem(own), proj), "")                     # own project
+        self.assertEqual(decide(mem(own), sub), "")                      # subfolder shares the repo's memory
+        self.assertEqual(decide(mem(own.replace("_", "-")), proj), "")   # other documented-style encoding
+        self.assertEqual(decide(mem("-home-victim-project-b"), proj), "deny")
+        self.assertEqual(decide(mem("custom"), proj, {"CLAUDE_CODE_PROJECT_DIR_NAME": "custom"}), "")
+
+    def test_symlinked_path_to_a_guardrail(self):
+        os.makedirs(os.path.join(self.cwd, ".claude"))
+        os.symlink(os.path.join(self.cwd, ".claude"), os.path.join(self.cwd, "innocent"))
+        self.assertEqual(self.file_decision("Write", "innocent/settings.json"), (0, "deny"))
 
     def test_allows_reading_project_files(self):
         payload = {"tool_name": "Read", "cwd": self.cwd,

@@ -3,6 +3,46 @@
 All notable changes to this framework are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [3.1.0] — 2026-11-04
+
+### Security
+- **The plugin now stops agents editing their own guardrails (ASI10 Rogue Agents).**
+  `protect-files.sh` blocks Write/Edit to `.claude/settings*.json`, `.claude/hooks/`, installed
+  plugins and `.git/hooks/`, and asks before edits to `AGENTS.md`, `CLAUDE.md`, `.agent/`,
+  `.cursor/rules/`, `CODEOWNERS` and pre-commit config. Before this, only the optional example
+  deny rules covered these, so plugin-only users had no protection for the Edit and Write tools.
+  It also asks before writes to `.claude/agents|skills|commands|rules|output-styles`, which
+  carry instructions (and can declare hooks), so planting one is a persistent prompt injection.
+- **`protect-files.sh` matches canonical paths.** It resolves each path against the working
+  directory, collapses `.` and `//`, resolves symlinks and compares in lowercase (macOS disks
+  are case-insensitive). Before this, `.claude/./settings.json`, `.claude//settings.json`,
+  `.claude/Settings.json` or a symlinked folder got past every check (found by GitHub
+  code scanning and Codex review on PR #5). It fails closed if `python3` is missing, instead of
+  falling back to the raw path. A path counts as outside the project if either its written or
+  its resolved form is, so a repo symlink such as `docs/notes -> ~/.bashrc` can't be used to write
+  outside it, and your own `$HOME` is protected wherever it lives.
+- **`.git/config` and `.git/info/` are blocked for the file tools.** An agent could otherwise set
+  `core.hooksPath` to switch off pre-commit checks, or `core.fsmonitor`/aliases that run commands
+  the next time a human uses git. Edits under `.claude-plugin/` (plugin manifests) now ask first.
+- **OS-level sandbox in the example settings**, with `failIfUnavailable: true` (no silent
+  unsandboxed fallback), `allowUnsandboxedCommands: false`, a network allowlist and credential
+  folders denied for reads.
+- **GitHub Actions pinned to full commit SHAs** in this repo's workflows and the examples, with
+  Dependabot (`.github/dependabot.yml` and an example copy) to keep them current. `self-test`
+  fails on any unpinned `uses:`.
+
+### Fixed
+- `protect-files.sh` blocked every write under `/home/...` outside the project — including
+  Claude Code's own memory files — for Linux users. Only the current project's memory
+  folder (`$HOME/.claude/projects/<this repo>/memory/`) is now exempt — memory is loaded into
+  every later session of its project, so writing another project's memory would be a
+  cross-project prompt injection. Other `.claude/` folders, in your home or anyone else's, stay
+  blocked. The same rule now also covers macOS `/Users/...` paths.
+
+### Changed
+- CI runs `self-test` on Linux and macOS. On macOS every bash hook runs under `/bin/bash`
+  (bash 3.2), so the portability fixes from 3.0.0 are now actually tested.
+
 ## [3.0.0] — 2026-11-04
 
 Combines the plugin work from PR #3 with the hardening and enforcement kit from this branch.

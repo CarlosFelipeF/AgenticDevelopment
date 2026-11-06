@@ -4,7 +4,7 @@
 # Make the jobs required status checks in your branch protection rules.
 #
 # Security notes:
-# - Pin third-party actions to a full commit SHA in production (tags can be moved).
+# - Actions are pinned to full commit SHAs (tags can be moved); Dependabot keeps them current.
 # - `permissions` is minimal; checkouts do not keep the token on disk.
 # - No untrusted PR text (titles, bodies, branch names) is ever put into a `run:` script.
 name: agent-guardrails
@@ -21,7 +21,7 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6          # Pin to a SHA in production
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -66,7 +66,7 @@ jobs:
       contents: read
       pull-requests: write                 # Lets the action post a summary comment
     steps:
-      - uses: actions/dependency-review-action@v5   # Pin to a SHA in production
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure
@@ -77,7 +77,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           persist-credentials: false

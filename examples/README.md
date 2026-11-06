@@ -56,7 +56,7 @@ FW=../AgenticDevelopment
 # Claude Code permissions + hooks (needs Python 3.8+, bash and jq)
 mkdir -p .claude/hooks
 cp "$FW/examples/enforcement/claude/settings.json" .claude/settings.json
-cp "$FW"/hooks/scripts/* .claude/hooks/
+cp "$FW"/hooks/scripts/*.py "$FW"/hooks/scripts/*.sh .claude/hooks/
 ```
 
 **For every project:**
@@ -105,7 +105,7 @@ that line if your team works on native Windows. See the
 |------|---------|--------|
 | `guard-bash.py` | Shell commands | Everything in the list below, plus commits whose added lines contain a secret |
 | `block-secret-write.sh` | Write / Edit | Writing a secret into a file |
-| `protect-files.sh` | Read / Write / Edit | Credential and system folders; edits to `.claude/` settings, hooks, plugins and `.git/hooks/`; asks before editing `AGENTS.md`, `.agent/` and other protected files |
+| `protect-files.py` | Read / Write / Edit | Credential and system folders; edits to `.claude/` settings, hooks, plugins and `.git/hooks/`; asks before editing `AGENTS.md`, `.agent/` and other protected files |
 
 `guard-bash.py` tokenises commands like a shell (quotes, pipes, `&&`, `$(...)`, heredocs), so
 words inside a commit message don't trigger it and quoting tricks don't hide a command. It blocks:
@@ -131,7 +131,9 @@ against `guard-bash.py`, plus tests for the other three hooks.
 - `grep -r` over the whole repo can still print `.env` contents. Claude Code applies `Read` deny
   rules to its own Grep tool on a best-effort basis; shell `grep -r` is not covered. Keep real
   secrets out of the working tree where you can (use a secret manager or `~/.config`).
-- Hooks fail open if `python3` or `jq` is missing — `agent-doctor` checks for both.
+- The Python hooks fail closed: if `python3` is missing or a hook crashes, the wrapper in the
+  hook command blocks the call. `block-secret-write.sh` still needs `jq` and fails open
+  without it — `agent-doctor` checks for both.
 
 Found a bypass? Report it privately (see `.github/SECURITY.md`), then add a test case.
 

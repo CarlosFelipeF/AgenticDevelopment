@@ -3,6 +3,33 @@
 All notable changes to this framework are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [3.2.0] — 2026-11-06
+
+### Changed
+- **`protect-files.sh` rewritten in Python** (`protect-files.py`) on a shared module,
+  `pathpolicy.py`. The bash version needed five rounds of security fixes in 3.1.0, all edge
+  cases of matching file paths with shell patterns. Checked against the old hook on 380
+  inputs (Write and Read, two working folders, symlinks, a real git repo): identical decisions.
+  It no longer needs `jq`.
+
+### Security
+- **Shell commands use the same path rules as the file tools.** `guard-bash.py` now checks
+  redirects and `cp`/`mv`/`tee` targets with `pathpolicy`, so `echo x > .CLAUDE/settings.json`,
+  `printf x >> .git/config` and `cp evil .git/info/exclude` are blocked (all three got through
+  in 3.1.0).
+- **The Python hooks fail closed.** The hook commands in `hooks/hooks.json` and the example
+  settings turn any failure — `python3` missing, a crash — into a block (exit 2). Before, Claude
+  Code treated a hook that couldn't start as "no objection". A real block still passes through
+  with its own message.
+- Hooks no longer write Python bytecode caches into the plugin or `.claude/hooks/` folder.
+
+### Added
+- `agent-doctor` checks that every hook script `.claude/settings.json` points at exists, that
+  `pathpolicy.py` is installed beside `protect-files.py`, and that `protect-files.py` really
+  blocks a write to `.claude/settings.json`.
+- Tests: the hook-command wrapper (no `python3`, normal allow, real block), bad input to
+  `protect-files.py`, and five new shell-write attack cases.
+
 ## [3.1.0] — 2026-11-04
 
 ### Security

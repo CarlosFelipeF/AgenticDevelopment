@@ -61,7 +61,7 @@ for the same action in a later session, unless the human says so explicitly.
 
 With the plugin installed, most of these are enforced by hooks (`hooks/hooks.json`):
 `guard-bash.py` for shell commands (including a secret scan on every commit),
-`block-secret-write.sh` for secrets, and `protect-files.sh` for credential and system folders. The rest rely on you.
+`block-secret-write.sh` for secrets, and `protect-files.py` for credential and system folders. The rest rely on you.
 
 - Commit, print, log or send secrets, keys or credentials
 - Read secret files (`.env*` except `.env.example`, `*.pem`, `*.key`, credential stores) unless the

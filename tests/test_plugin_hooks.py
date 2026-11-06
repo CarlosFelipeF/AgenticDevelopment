@@ -1,7 +1,7 @@
 """Tests for the plugin hooks in hooks/scripts/: the commit secret scan, secret writes, protected files.
 
 Run:  python3 -m unittest discover -s tests -v
-Needs: bash, git, jq (the hooks use jq to read their JSON input).
+Needs: bash, git, python3, jq (block-secret-write.sh reads its JSON input with jq).
 """
 import json
 import os
@@ -33,7 +33,8 @@ def run(script, payload, cwd, home=None):
     env = {**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT}
     if home:
         env["HOME"] = home
-    res = subprocess.run([HOOK_BASH, os.path.join(SCRIPTS, script)], input=json.dumps(payload),
+    interpreter = sys.executable if script.endswith(".py") else HOOK_BASH
+    res = subprocess.run([interpreter, os.path.join(SCRIPTS, script)], input=json.dumps(payload),
                          capture_output=True, text=True, cwd=cwd, timeout=30, env=env)
     decision = ""
     if res.stdout.strip():
@@ -139,12 +140,12 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
     def test_blocks_reading_ssh_keys(self):
         payload = {"tool_name": "Read", "cwd": self.cwd,
                    "tool_input": {"file_path": os.path.expanduser("~/.ssh/id_ed25519")}}
-        self.assertEqual(run("protect-files.sh", payload, self.cwd), (0, "deny"))
+        self.assertEqual(run("protect-files.py", payload, self.cwd), (0, "deny"))
 
     def file_decision(self, tool, rel_path):
         path = rel_path if os.path.isabs(rel_path) else os.path.join(self.cwd, rel_path)
         payload = {"tool_name": tool, "cwd": self.cwd, "tool_input": {"file_path": path}}
-        return run("protect-files.sh", payload, self.cwd)
+        return run("protect-files.py", payload, self.cwd)
 
     def test_blocks_edits_to_guardrails(self):
         home = os.path.expanduser("~")
@@ -173,7 +174,7 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
     def test_home_paths_outside_project(self):
         def decide(path, cwd, home):
             payload = {"tool_name": "Write", "cwd": cwd, "tool_input": {"file_path": path}}
-            return run("protect-files.sh", payload, self.cwd, home=home)[1]
+            return run("protect-files.py", payload, self.cwd, home=home)[1]
         for home in ("/home/tester", "/Users/tester"):
             proj = home + "/proj"
             with self.subTest(home=home):
@@ -208,20 +209,44 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
                 self.assertEqual(self.file_decision("Write", path), (0, "deny"))
         self.assertEqual(self.file_decision("Edit", ".claude-plugin/plugin.json"), (0, "ask"))
 
-    def test_fails_closed_without_python3(self):
-        # PR #5 security review: without python3 the old fallback matched the raw path.
+    def test_hooks_json_wrapper_fails_closed(self):
+        # Without python3, or if a Python hook crashes, Claude Code would treat the failure as
+        # "no objection". The hooks.json wrapper turns any failure into exit 2 (block), while a
+        # normal allow (0) and a real block (2) pass through unchanged.
+        with open(os.path.join(ROOT, "hooks", "hooks.json")) as fh:
+            commands = {h["command"].split("/hooks/scripts/")[1].split('"')[0]: h["command"]
+                        for g in json.load(fh)["hooks"]["PreToolUse"] for h in g["hooks"]}
         bindir = os.path.join(self.cwd, "bin-no-python")
         os.makedirs(bindir)
-        for tool in ("jq", "tr", "basename", "cat"):
-            os.symlink(shutil.which(tool), os.path.join(bindir, tool))
-        bash = shutil.which(HOOK_BASH) or HOOK_BASH
-        for path in (".claude/./settings.json", "src/app.py"):
-            with self.subTest(path=path):
-                payload = {"tool_name": "Write", "cwd": self.cwd,
-                           "tool_input": {"file_path": os.path.join(self.cwd, path)}}
-                res = subprocess.run([bash, os.path.join(SCRIPTS, "protect-files.sh")],
-                                     input=json.dumps(payload), capture_output=True, text=True,
-                                     env={"PATH": bindir, "HOME": self.cwd}, timeout=30)
+        for tool in ("cat", "echo"):
+            if shutil.which(tool):
+                os.symlink(shutil.which(tool), os.path.join(bindir, tool))
+        payload = json.dumps({"tool_name": "Write", "cwd": self.cwd,
+                              "tool_input": {"file_path": os.path.join(self.cwd, "src/app.py"), "command": "ls"}})
+        sh = shutil.which("sh")
+        for name in ("guard-bash.py", "protect-files.py"):
+            with self.subTest(hook=name, case="python3 missing"):
+                res = subprocess.run([sh, "-c", commands[name]], input=payload, capture_output=True, text=True,
+                                     env={"PATH": bindir, "CLAUDE_PLUGIN_ROOT": ROOT, "HOME": self.cwd}, timeout=30)
+                self.assertEqual(res.returncode, 2)
+                self.assertIn("fail secure", res.stderr)
+            with self.subTest(hook=name, case="normal allow"):
+                res = subprocess.run([sh, "-c", commands[name]], input=payload, capture_output=True, text=True,
+                                     env={**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, "HOME": self.cwd}, timeout=30)
+                self.assertEqual(res.returncode, 0, res.stderr)
+        with self.subTest(hook="guard-bash.py", case="real block passes through"):
+            block = json.dumps({"tool_input": {"command": "sudo ls"}, "cwd": self.cwd})
+            res = subprocess.run([sh, "-c", commands["guard-bash.py"]], input=block, capture_output=True, text=True,
+                                 env={**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, "HOME": self.cwd}, timeout=30)
+            self.assertEqual(res.returncode, 2)
+            self.assertIn("privilege escalation", res.stderr)
+            self.assertNotIn("fail secure", res.stderr)
+
+    def test_protect_files_fails_closed_on_bad_input(self):
+        for payload in ('{"tool_input": {"file_path": 42}}', "not json"):
+            with self.subTest(payload=payload):
+                res = subprocess.run([sys.executable, os.path.join(SCRIPTS, "protect-files.py")], input=payload,
+                                     capture_output=True, text=True, timeout=30)
                 self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
 
     def test_symlink_inside_project_pointing_outside(self):
@@ -236,7 +261,7 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
 
         def decide(path):
             payload = {"tool_name": "Write", "cwd": proj, "tool_input": {"file_path": path}}
-            return run("protect-files.sh", payload, self.cwd, home=home)[1]
+            return run("protect-files.py", payload, self.cwd, home=home)[1]
         self.assertEqual(decide(os.path.join(proj, "docs", "notes")), "deny")
         self.assertEqual(decide(os.path.join(home, ".bashrc")), "deny")
         self.assertEqual(decide(os.path.join(home, ".claude", "projects", own_slug, "memory", "n.md")), "")
@@ -255,7 +280,7 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
         def decide(path, cwd, extra_env=None):
             payload = {"tool_name": "Write", "cwd": cwd, "tool_input": {"file_path": path}}
             env = {**os.environ, "CLAUDE_PLUGIN_ROOT": ROOT, "HOME": home, **(extra_env or {})}
-            res = subprocess.run([HOOK_BASH, os.path.join(SCRIPTS, "protect-files.sh")], input=json.dumps(payload),
+            res = subprocess.run([sys.executable, os.path.join(SCRIPTS, "protect-files.py")], input=json.dumps(payload),
                                  capture_output=True, text=True, timeout=30, env=env)
             return json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"] if res.stdout.strip() else ""
         self.assertEqual(decide(mem(own), proj), "")                     # own project
@@ -272,7 +297,7 @@ class SecretWriteAndProtectedFilesTest(unittest.TestCase):
     def test_allows_reading_project_files(self):
         payload = {"tool_name": "Read", "cwd": self.cwd,
                    "tool_input": {"file_path": os.path.join(self.cwd, "README.md")}}
-        self.assertEqual(run("protect-files.sh", payload, self.cwd), (0, ""))
+        self.assertEqual(run("protect-files.py", payload, self.cwd), (0, ""))
 
 
 if __name__ == "__main__":

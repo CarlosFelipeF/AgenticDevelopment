@@ -129,6 +129,23 @@ if [ -f .claude/settings.json ] && grep -q 'guard-bash' .claude/settings.json; t
   fi
 fi
 
+if [ -f .claude/settings.json ]; then
+  # Every hook script the settings point at must exist, or that hook silently does nothing.
+  for h in $(grep -oE '\.claude/hooks/[A-Za-z0-9_.-]+' .claude/settings.json | sort -u); do
+    [ -f "$h" ] && pass "$h present" || fail ".claude/settings.json references $h, which is missing"
+  done
+  if grep -q 'protect-files.py' .claude/settings.json; then
+    if [ ! -f .claude/hooks/pathpolicy.py ]; then
+      fail "protect-files.py needs .claude/hooks/pathpolicy.py (copy all of hooks/scripts/)"
+    elif command -v python3 >/dev/null 2>&1 \
+      && ! printf '%s' '{"tool_name":"Write","cwd":".","tool_input":{"file_path":".claude/settings.json"}}' \
+           | python3 .claude/hooks/protect-files.py 2>/dev/null | grep -q '"deny"'; then
+      fail "protect-files.py did not block a write to .claude/settings.json — check the installed version"
+    else
+      pass "protect-files hook installed and blocking"
+    fi
+  fi
+fi
 if ls .claude/hooks/*.sh >/dev/null 2>&1; then
   command -v jq >/dev/null 2>&1 && pass "jq installed (needed by the shell hooks)" \
     || fail "the hooks in .claude/hooks/*.sh need jq, which is not installed (they would fail open)"

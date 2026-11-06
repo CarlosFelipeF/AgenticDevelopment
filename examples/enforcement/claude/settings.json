@@ -96,7 +96,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.py; rc=$?; [ \"$rc\" -eq 0 ] || { [ \"$rc\" -eq 2 ] || echo \"guard-bash: python3 is missing or the hook failed; blocking to fail secure.\" >&2; exit 2; }",
             "timeout": 30
           }
         ]
@@ -115,7 +115,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-files.sh"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-files.py; rc=$?; [ \"$rc\" -eq 0 ] || { [ \"$rc\" -eq 2 ] || echo \"protect-files: python3 is missing or the hook failed; blocking to fail secure.\" >&2; exit 2; }",
+            "timeout": 15
           }
         ]
       }

@@ -1,4 +1,4 @@
-# AGENTS.md — Agent Governance Framework v3.1.0
+# AGENTS.md — Agent Governance Framework v3.2.0
 
 > **For AI coding agents.** This file sets the rules, permissions and workflow for this repository.
 > Human developers: see `AGENTIC-SECURITY-CHECKLIST.md` for the controls that *enforce* these rules.
@@ -56,7 +56,7 @@ model decides, so they hold even under prompt injection:
 | No running downloaded code, skipping hooks, force or main pushes, secret reads or exfiltration, destructive deletes, `sudo`, or shell edits to governance files | `hooks/scripts/guard-bash.py` |
 | No committing secrets (scans the lines a commit would add; fails closed) | `hooks/scripts/guard-bash.py` |
 | No writing secrets to disk | `hooks/scripts/block-secret-write.sh` |
-| Protected files need approval; credential and system folders are blocked; agents can't edit their own guardrails (blocked) or rules (approval) | `hooks/scripts/protect-files.sh` |
+| Protected files need approval; credential and system folders are blocked; agents can't edit their own guardrails (blocked) or rules (approval) | `hooks/scripts/protect-files.py` |
 
 **Limits:** the shell guard parses commands like a shell and is tested against 150+ cases
 (`tests/`), but it cannot see what a script does after it is written to disk. Treat hooks as
@@ -120,6 +120,6 @@ A task is done only when:
 
 ---
 
-*Framework version: 3.1.0 | Aligned with the OWASP Top 10 for Agentic Applications (2026), ASI01–ASI10.*
+*Framework version: 3.2.0 | Aligned with the OWASP Top 10 for Agentic Applications (2026), ASI01–ASI10.*
 *These rules guide a cooperative agent. They are enforced by the plugin hooks in `hooks/`, the controls in
 `examples/enforcement/` and `AGENTIC-SECURITY-CHECKLIST.md` — not by this file alone.*

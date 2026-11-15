@@ -1,4 +1,4 @@
-# AGENTS.md — Agent Governance Framework v3.2.0
+# AGENTS.md — Agent Governance Framework v3.2.1
 
 > **For AI coding agents.** This file sets the rules, permissions and workflow for this repository.
 > Human developers: see `AGENTIC-SECURITY-CHECKLIST.md` for the controls that *enforce* these rules.
@@ -120,6 +120,6 @@ A task is done only when:
 
 ---
 
-*Framework version: 3.2.0 | Aligned with the OWASP Top 10 for Agentic Applications (2026), ASI01–ASI10.*
+*Framework version: 3.2.1 | Aligned with the OWASP Top 10 for Agentic Applications (2026), ASI01–ASI10.*
 *These rules guide a cooperative agent. They are enforced by the plugin hooks in `hooks/`, the controls in
 `examples/enforcement/` and `AGENTIC-SECURITY-CHECKLIST.md` — not by this file alone.*

@@ -116,6 +116,19 @@ for e in errors:
 sys.exit(1 if errors else 0)
 PY
 
+step "Plugin smoke-test script"
+if smoke_out="$(TMPDIR="$logs" scripts/plugin-smoke-test.sh setup 2>&1)"; then
+  smoke_dir="$(printf '%s\n' "$smoke_out" | sed -n 's/^Sandbox ready: //p')"
+  mkdir -p "$smoke_dir/src" && printf 'print("hello")\n' > "$smoke_dir/src/hello.py"   # the control step
+  if scripts/plugin-smoke-test.sh check "$smoke_dir" >"$logs/smoke.log" 2>&1; then
+    ok "setup + check on an untouched sandbox: $(tail -1 "$logs/smoke.log")"
+  else
+    cat "$logs/smoke.log"; bad "plugin-smoke-test.sh check"
+  fi
+else
+  printf '%s\n' "$smoke_out"; bad "plugin-smoke-test.sh setup"
+fi
+
 step "agent-doctor"
 if scripts/agent-doctor.sh >"$logs/doctor.log" 2>&1; then
   ok "$(tail -1 "$logs/doctor.log")"
